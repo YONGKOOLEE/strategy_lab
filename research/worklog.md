@@ -142,3 +142,9 @@
 - 23:21 rs-momentum 새 기준선(연구 프로필 + 배분 규칙) 완료: 배분 규칙 채택 후보(①②③ 충족). HANDOFF §2·§2-1·§3 갱신. 실행 중인 작업 없음.
 - 23:27 사용자 "방금 나온 rs-momentum 운영 판정까지 handoff에 포함해서 새로 인계 준비" → `research/HANDOFF.md` 전면 재작성: §2 운영 판정 두 전략 대조표 신설(rs ①②③ 충족 / r3 ①③ 미충족, 창별·한계·미완 항목), §5 다음 할 일에 ① 배분 규칙 채택 승인 ② 기초 전략 C-1~C-8 연구 프로필 재측정(미실행임을 명시) 추가, §8 운영 HEAD bd76c02 반영. 실행 중 작업 없음.
 - 23:28 사용자 지시: 모델 사용 규칙(메인 Opus/Fable 선택, 프로젝트가 판단해 Sonnet 가능 업무는 위임, 토큰 효율) → CLAUDE.md §9, HANDOFF §6-1·§8, 메모리 feedback-model-usage 반영.
+
+### 2026-10-14
+- 20:57 세션 시작(HANDOFF 읽음, 운영 HEAD bd76c02 변화 없음). 사용자 "전부 권장대로 + 첫 커밋".
+- 21:0x 전략실 첫 커밋 91f7b79(151파일; data·results·로컬 권한 설정 제외 — .gitignore에 settings.local.json 추가, 저장소 로컬 git 사용자 설정). 원격(GitHub)은 미생성 — gh 없음, push는 권한 설정에서 거부 규칙, 사용자 결정 대기.
+- 21:03 사전 등록 `research/2026-10-14-base-c1c8-research-profile-design.md`(② 기초 전략 C-1~C-8 연구 프로필, ④ r3 B+피라미딩) → 별도 호출로 3개 병렬 시작: rs research-base(10 workers), r3 turnover30-research-base(5), r3 turnover30-research-B-pyr(5). 로그 results/20261014-*.log.
+- 21:10 원격 origin = https://github.com/YONGKOOLEE/strategy_lab.git 등록(push는 사용자). ③ 학습 창 모드 완료: quick.py/quick.ps1 `--train`/`-Train -TrainStart -TrainEnd`(창 k 학습 구간 안쪽만, 연도별 표·첫 진입일, 장부 tool=quick-train). 검사: 문법 OK, 거부 경로 3개 exit 2, example_sma sample10 2017 학습 실행 18건 29초 exit 0(첫 진입 2017-01-02 → 시작일 전 일봉이 워밍업에 쓰임 확인). 기본(검증 창) quick 경로는 재실행 안 함.

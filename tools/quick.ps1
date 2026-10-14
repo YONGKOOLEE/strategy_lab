@@ -6,7 +6,10 @@ param(
     [Parameter(Mandatory = $true)][string]$Candidate,
     [Parameter(Mandatory = $true)][string]$Class,
     [Parameter(Mandatory = $true)][int]$Version,
-    [string]$Windows = '4,7',     # 검증 창 k (1~7 = 2019~2025). 기본 4(2022 하락장)·7(2025)
+    [string]$Windows = '',        # 창 k (1~7). 비우면 4,7(2022 하락장·2025), -Train이면 1(학습 2016~2018)
+    [switch]$Train,               # 학습 창 모드: 창 k의 학습 구간 실행(파라미터 선택용, 판정 아님)
+    [string]$TrainStart = '',     # 학습 구간 시작일 YYYY-MM-DD(워밍업 공통화, 예 2017-01-01)
+    [string]$TrainEnd = '',
     [string]$Label = 'base',      # 파라미터를 바꿨으면 라벨도 바꾼다 (결과 폴더·시도 장부에 기록)
     [string]$EvalTime = '09:30',
     [string]$Params = '',         # 대조군·변형 실험용 파라미터 파일(기본은 params-v<n>.toml). 지정하면 -Label도 바꾼다
@@ -27,5 +30,9 @@ $extra = @()
 if ($Params -ne '') { $extra += @('--params', $Params) }
 if ($Limits -ne '') { $extra += @('--limits', $Limits) }
 if ($Data -ne '') { $extra += @('--data', $Data) }
-& $py (Join-Path $lab 'tools\quick.py') --candidate $Candidate --cls $Class --version $Version --windows $Windows --label $Label --eval-time $EvalTime --ops $Ops @extra
+if ($Windows -ne '') { $extra += @('--windows', $Windows) }
+if ($Train) { $extra += '--train' }
+if ($TrainStart -ne '') { $extra += @('--train-start', $TrainStart) }
+if ($TrainEnd -ne '') { $extra += @('--train-end', $TrainEnd) }
+& $py (Join-Path $lab 'tools\quick.py') --candidate $Candidate --cls $Class --version $Version --label $Label --eval-time $EvalTime --ops $Ops @extra
 exit $LASTEXITCODE

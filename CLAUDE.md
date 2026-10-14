@@ -62,6 +62,7 @@
 | `tools\sync-data.ps1` | 운영 일봉 → `data/daily`(2025-12-31까지) | 가벼움 |
 | `tools\check-candidate.ps1 -Candidate <폴더> -Class <클래스> -Version <n>` | 운영 구조 규칙·적재·파라미터 범위·strategy.md 빈 칸 | 수 초 |
 | `tools\quick.ps1 … [-Windows 4,7] [-Label base]` | 창 1~2개 1차 선별, `trials.jsonl` 기록 | 창당 약 2.5분(30종목) |
+| `tools\quick.ps1 … -Train [-TrainStart 2017-01-01] -Label train-<값>` | 학습 창(2016~2018) 실행 — 파라미터 선택용, 판정 아님 | 창당 수 분~17분 |
 | `tools\validate.ps1 …` | 운영 검증 실행기 전체(91회) | 약 86분 — 저녁에 백그라운드 |
 | `python -m pytest tools\test_indicators.py tools\test_patterns.py` | 지표·패턴 검출기 시험 | 수 초 |
 | `quick.ps1 … -Label scaleB -Params <scale params> -Limits research\limits-scale-test-l1fix.toml` | 규모 실험(판정 아님, "미결정 한도 가정" 표시) | 창당 약 2.5분 |

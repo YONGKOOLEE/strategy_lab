@@ -35,6 +35,7 @@
    powershell -NoProfile -ExecutionPolicy Bypass -File C:\AI\strategy-lab\tools\quick.ps1 -Candidate example_sma -Class ExampleSmaV1 -Version 1
    ```
    창을 바꾸려면 ` -Windows 1,2,3`, 파라미터를 바꿔 다시 돌리면 ` -Label <라벨>`(결과 폴더·시도 장부 구분). 평일 휴장일 낮에는 ` -Holiday`.
+   학습 창(파라미터 선택용, 판정 아님): ` -Train -TrainStart 2017-01-01 -Label train-<값> -Params <파일>` — 창 1 학습 구간(2016~2018) 안에서만 실행, 연도별 표·첫 진입일 출력, 장부 tool=quick-train.
    규모 실험(판정 아님): ` -Label scaleB -Params <후보>\params-v<n>-scale-cap10m.toml -Limits C:\AI\strategy-lab\research\limits-scale-test-l1fix.toml` — 결과에 "사용자 미결정 한도 가정" 표시.
 4. 미리 돌려 보기(검증 실행기 전체 91회, 약 86분. 평일 06:40~16:00 거부) — 기대 결과 `판정: …` 과 `종료 코드 0, 결과 폴더 …`
    ```
