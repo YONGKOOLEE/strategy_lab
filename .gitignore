@@ -1,0 +1,14 @@
+# 데이터·실행 결과는 버전 관리하지 않는다 (CLAUDE.md §3·§5)
+data/
+results/
+# 비밀 파일은 이 저장소에 두지 않는다 — 실수로 생겨도 제외
+.env
+.env.*
+*.key
+# 파이썬·노트북 부산물
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+# 개인 로컬 권한 설정
+.claude/settings.local.json

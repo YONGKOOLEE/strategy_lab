@@ -1,0 +1,15 @@
+# list-rules v1 공격형 프로필: 고정 −7% 손절 / 60거래일 상한 (T2 X-FIX). 라벨 aggressive. 운영 등록 시 별도 파라미터 파일로.
+strategy = "list-rules"
+version = 1
+
+[params]
+exit_mode = "fixed"
+sma_n = 20
+stop_pct = "0.07"
+hold_max = 60
+reentry_wait = 0
+regime_n = 200
+atr_mult = "2"
+risk_ratio = "0.004"
+max_weight = "0.09"
+order_cap = "1000000"

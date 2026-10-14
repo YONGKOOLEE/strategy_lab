@@ -1,0 +1,12 @@
+# rsi2-meanrev v1 규모 실험(research/params-scale-cap10m.md). 운영 등록용 아님.
+strategy = "rsi2-meanrev"
+version = 1
+
+[params]
+trend_n = 100
+rsi_entry = 10
+hold_max = 5
+stop_pct = "0.05"
+risk_ratio = "0.004"
+max_weight = "0.09"
+order_cap = "10000000"

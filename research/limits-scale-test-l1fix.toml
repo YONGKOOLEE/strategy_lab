@@ -1,0 +1,21 @@
+# 전략실 규모 실험 B — A + **L1 2% 임시 보정**. 게이트 L1이 위험을 (상한가 − 손절가)로 계산해 실제 위험(기준가 − 손절가 ≈ 가격의 4~8%)의
+# 약 5~8배로 잡는 문제를 근사 보정한 것(운영 CP로 계산 방식을 고치기 전 연구용). 사용자 미결정 한도 가정. 운영 파일 아님.
+# 실제 전략 위험은 S-3 risk_ratio(0.4%)가 통제한다 — 게이트 L1 2%는 "전략 계산 위험 0.4%를 상한가 기준으로 재평가해도 통과"하게 하는 값.
+account = "KR-BT-01"
+
+[limits]
+l1_max_loss_ratio = "0.02"         # ← 임시 보정 (운영 0.005)
+l2_max_symbol_ratio = "0.10"
+l3_max_total_ratio = "0.50"
+l4_daily_loss_ratio = "0.01"
+l5_daily_new_orders = 5
+l6_max_positions = 3
+l7_max_order_amount = "10000000"   # ← 실험값 (운영 1,000,000)
+l10_leverage_total_ratio = "none"
+warn_usage_ratio = "0.80"
+
+[time]
+order_window_start = "09:10"
+order_window_end = "15:10"
+daily_reference_time = "08:00"
+report_time = "16:00"

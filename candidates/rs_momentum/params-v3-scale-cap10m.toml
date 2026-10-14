@@ -1,0 +1,14 @@
+# rs-momentum v3 규모 실험 — order_cap 1,000만(= L2 10% × 1억). research/limits-scale-test*.toml과 함께 쓴다.
+# 사용자 미결정 한도 가정. 운영 등록용 아님(quick --params 전용).
+strategy = "rs-momentum"
+version = 3
+
+[params]
+mom_n = 120
+trend_n = 100
+exit_rank = 6
+reentry_wait = 0
+atr_mult = "2"
+risk_ratio = "0.004"
+max_weight = "0.09"
+order_cap = "10000000"  # ← 실험값. 위험 0.4%(≈1,000만)·비중 9%(900만)가 실제로 크기를 정하게 된다

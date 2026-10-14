@@ -1,0 +1,22 @@
+# r3-trend v6 — 사용자 규칙(2026-10-11) 정량화 제안값. 모드 2(목록) 기본: screen = "off". 사전 등록 notes.md.
+strategy = "r3-trend"
+version = 6
+
+[params]
+stop_pct = "0.08"      # 1R = 8% (사용자 수치). 익절 +8/+16/+24%
+high_n = 60            # 1stage 고점 = 60일 신고가
+pull_min = "0.08"      # 2stage 조정 깊이 8~25%
+pull_max = "0.25"
+vol_mult = "1.5"       # 돌파일 거래량 ≥ 20일 평균 × 1.5
+trail_atr = "3"        # 2R 뒤 트레일링 = 피크 − 2×ATR14
+rs_n = 120             # 상대강도 기간(문헌 표준 6개월). 60·250은 민감도
+hold_max = 250
+regime_n = 0            # 국면은 배분 규칙 regime_kospi가 담당
+screen = "off"
+pyramid = 0            # 변형 C에서 1
+stock_sma_n = 0        # 변형 A에서 150
+trail_mode = "entry"      # 변형 B에서 "entry"(trail_atr 3)
+risk_ratio = "0.004"
+max_weight = "0.09"
+order_cap = "1000000"
+pyramid_stop = 0       # v6: 증액 뒤 손절선 상향(C2에서 1)

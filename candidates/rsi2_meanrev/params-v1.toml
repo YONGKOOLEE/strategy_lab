@@ -1,0 +1,12 @@
+# rsi2-meanrev v1 — 사전 등록 초기값(notes.md). 운영 cand-meanrev-rsi 메모(SMA100, RSI2<10, 손절 5%, 최대 5일)와 같은 값.
+strategy = "rsi2-meanrev"
+version = 1
+
+[params]
+trend_n = 100
+rsi_entry = 10
+hold_max = 5
+stop_pct = "0.05"
+risk_ratio = "0.004"
+max_weight = "0.09"
+order_cap = "1000000"  # 운영 L7과 같음(A-034)

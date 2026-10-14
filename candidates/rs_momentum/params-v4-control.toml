@@ -1,0 +1,14 @@
+# rs-momentum v4 대조군 — regime_n = 0 (국면 필터 없음 = v3 규칙). 라벨 control-k200. 판정 아님, v4 base 비교용.
+strategy = "rs-momentum"
+version = 4
+
+[params]
+mom_n = 120
+trend_n = 100
+exit_rank = 6
+reentry_wait = 0
+regime_n = 0
+atr_mult = "2"
+risk_ratio = "0.004"
+max_weight = "0.09"
+order_cap = "1000000"

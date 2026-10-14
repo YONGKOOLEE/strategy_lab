@@ -1,0 +1,7 @@
+# regime-kospi v1 — rs-momentum v4·r3-trend의 내장 국면 필터와 같은 값(사전 고정, 변경 없음).
+strategy = "regime-kospi"
+version = 1
+
+[params]
+sma_days = 200
+slope_days = 20

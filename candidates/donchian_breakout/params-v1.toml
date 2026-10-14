@@ -1,0 +1,10 @@
+# donchian-breakout v1 — 사전 등록 초기값(notes.md). 운영 cand-breakout 메모(20/10)와 같은 값, 데이터로 조정하지 않음.
+strategy = "donchian-breakout"
+version = 1
+
+[params]
+entry_n = 20
+exit_n = 10
+risk_ratio = "0.004"
+max_weight = "0.09"
+order_cap = "1000000"  # 운영 L7과 같음(A-034). 규모 실험은 research/limits-scale-test-l1fix.toml + 별도 params

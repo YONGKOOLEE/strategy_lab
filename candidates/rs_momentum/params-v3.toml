@@ -1,0 +1,13 @@
+# rs-momentum v3 기본값 = v1 규칙(reentry_wait 0) + order_cap 100만(운영 L7). 이 값이면 v1 결과와 동일해야 한다(대조로 확인).
+strategy = "rs-momentum"
+version = 3
+
+[params]
+mom_n = 120
+trend_n = 100
+exit_rank = 6
+reentry_wait = 0       # v2 쿨다운은 개선 아님 → 0(없음)
+atr_mult = "2"
+risk_ratio = "0.004"
+max_weight = "0.09"
+order_cap = "1000000"  # 운영 L7과 같음(A-034)

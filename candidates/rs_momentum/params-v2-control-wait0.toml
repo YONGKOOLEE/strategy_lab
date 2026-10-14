@@ -1,0 +1,13 @@
+# rs-momentum v2 대조군 — reentry_wait = 0 이면 v1 규칙과 동일. v1(운영 3ee9f97)과 v2(운영 b1570d2)의 차이에서
+# 운영 코드 변경 효과를 분리하기 위한 실험용 파일. 운영 등록용 아님(quick --params 전용, 라벨 control-wait0).
+strategy = "rs-momentum"
+version = 2
+
+[params]
+mom_n = 120
+trend_n = 100
+exit_rank = 6
+reentry_wait = 0
+atr_mult = "2"
+risk_ratio = "0.004"
+max_weight = "0.09"

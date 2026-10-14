@@ -1,0 +1,10 @@
+# example-sma v1 — 전략실 견본 파라미터. 실전 후보 아님. 값을 바꾸면 버전을 올린다. 소수는 문자열로 적는다.
+strategy = "example-sma"
+version = 1
+
+[params]
+fast = 20
+slow = 60
+atr_mult = "2"
+risk_ratio = "0.004"  # 1회 위험 = 기준 금액 × 0.4% (계좌 L1 0.5% 이하)
+max_weight = "0.09"   # 종목 비중 상한 9% (계좌 L2 10% 이하)
