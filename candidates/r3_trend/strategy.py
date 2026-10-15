@@ -1,6 +1,8 @@
 """후보 r3-trend v7 — 사용자 규칙 정정(2026-10-14) 반영: CAN SLIM식 넓은 스크리닝 + 큰 상승 뒤 조정 돌파 + 1:3 익절. 전략실 연구 후보(운영 미등록).
 
 v1~v6은 사용자 규칙을 잘못 해석했다(+8/+16/+24% 분할 익절·1R 뒤 본전 이동). v7은 규칙 전면 교체 — 이전 결과 승계 없음. 이전 코드 strategy-v6.py.
+v7 → v8(2026-10-15, 사용자 요청 "피라미딩에 따라 손절 상향 케이스"): pyr_stop 파라미터 — 증액 체결 뒤 손절선을 none(−stop_pct 유지)·half(e0×(1−stop_pct/2))·
+  e0(원래 진입가 = 본전, v7 동작)·avg(증액 후 평균 단가) 중 하나로. 기본 e0이면 v7과 동작 동일. 이전 코드 strategy-v7.py.
 규칙(판정 1일 1회 09:30, 전일까지 확정 일봉. 아래 "전일" = bars[-1]):
 - 스크리닝(모드 3, 데이터 폴더 전 종목): ① 상대강도 RS ≥ rs_min — 점수 = 2×ROC63 + ROC126 + ROC189 + ROC252(오닐식 가중 12개월),
   같은 날 점수가 있는 종목 안 백분위(낮은 점수 종목 수 / (N−1) × 100) ② 일봉 정배열: 전일 종가 > SMA20 > SMA60 > SMA120
@@ -39,7 +41,7 @@ from trading_system.domain.strategy import (
 from trading_system.strategy.base import ParamValues, make_signal
 
 STRATEGY_ID = "r3-trend"
-VERSION = 7
+VERSION = 8
 TOP_N = 3
 REGIME_CODE = "KOSPI"
 _INPUTS = ("CAP-DAT-01", "상태 입력")
@@ -53,6 +55,7 @@ WORST_PRICE_FACTOR = Decimal("1.3")
 PYR_SIZE = Decimal("0.5")
 D0, D1, D2 = Decimal("0"), Decimal("1"), Decimal("2")
 EXIT_MODES = ("all", "half_sma", "half_trail", "trail")
+PYR_STOPS = ("none", "half", "e0", "avg")
 
 
 # --- 지표 (tools/indicators.py에서 복사) ---------------------------------------------------------
@@ -194,7 +197,7 @@ def build_spec() -> StrategySpec:
         RuleSpec("EXIT-3", "EXIT", ("상태 입력",), "CAP-TRG-01", "보유 AND 보유 거래일 >= hold_max", "전량 시장가 청산(기간 만료)",
                  "데이터 품질 실패·처리 중 주문", 1),
         RuleSpec("EXIT-2", "EXIT", _INPUTS, "CAP-TRG-01",
-                 "보유 AND 종가 < 손절선 [e0×(1−stop_pct); 피라미딩 뒤 e0; trail: 진입부터 / half_trail: 1차 익절 뒤 max(손절선, 피크 − trail_atr×ATR14)]",
+                 "보유 AND 종가 < 손절선 [e0×(1−stop_pct); 피라미딩 뒤 pyr_stop(none 유지·half e0×(1−stop_pct/2)·e0 본전·avg 평균 단가); trail: 진입부터 / half_trail: 1차 익절 뒤 max(손절선, 피크 − trail_atr×ATR14)]",
                  "전량 시장가 청산(손절·트레일)", "데이터 품질 실패·처리 중 주문", 2),
         RuleSpec("EXIT-4", "EXIT", _INPUTS, "CAP-TRG-01", "exit_mode=half_sma AND 1차 익절 뒤 AND 종가 < SMA(exit_sma_n)",
                  "잔량 전량 시장가 청산", "데이터 품질 실패·처리 중 주문", 3),
@@ -203,7 +206,7 @@ def build_spec() -> StrategySpec:
         RuleSpec("TAKE-1H", "REDUCE", _INPUTS, "CAP-TRG-01", "보유 AND 피크가 전일 처음 e0×(1+tp_r×stop_pct) 이상 AND exit_mode=half_sma|half_trail",
                  "보유 수량의 1/2 시장가 감액", "데이터 품질 실패·처리 중 주문", 4),
         RuleSpec("INCREASE-1", "INCREASE", _INPUTS, "CAP-TRG-01", "pyr_at>0 AND 보유 AND 피크가 전일 처음 e0×(1+pyr_at) 이상 AND TAKE 아님",
-                 "보유 수량의 0.5배 시장가 증액 1회(손절가 = e0)", "데이터 품질 실패·처리 중 주문·거래 상태 이상", 5),
+                 "보유 수량의 0.5배 시장가 증액 1회(손절가 = pyr_stop에 따른 증액 뒤 손절선)", "데이터 품질 실패·처리 중 주문·거래 상태 이상", 5),
         RuleSpec("REGIME-1", "REENTRY_BLOCK", _INPUTS, "CAP-TRG-01",
                  "KOSPI 전일 종가 <= SMA(regime_n) OR SMA(regime_n) <= 20일 전 SMA OR 지수 없음 (regime_n 0 = 없음)", "ENTRY-1 신호 없음", "—", 1),
         RuleSpec("ENTRY-1", "ENTRY", _INPUTS, "CAP-TRG-01",
@@ -219,7 +222,9 @@ def build_spec() -> StrategySpec:
                   choices=EXIT_MODES),
         ParamSpec("exit_sma_n", "int", "거래일", "half_sma 잔량 청산 SMA 기간", Decimal("10"), Decimal("200")),
         ParamSpec("trail_atr", "decimal", "배", "트레일 폭(ATR14 배수)", Decimal("1"), Decimal("6")),
-        ParamSpec("pyr_at", "decimal", "비율", "피라미딩 트리거 상승률(0 = 없음). 증액 0.5배 1회, 손절선 본전", Decimal("0"), Decimal("0.20")),
+        ParamSpec("pyr_at", "decimal", "비율", "피라미딩 트리거 상승률(0 = 없음). 증액 0.5배 1회, 손절선은 pyr_stop", Decimal("0"), Decimal("0.20")),
+        ParamSpec("pyr_stop", "str", "—", "증액 뒤 손절선: none = e0×(1−stop_pct) 유지 / half = e0×(1−stop_pct/2) / e0 = 본전(원래 진입가) / avg = 증액 후 평균 단가",
+                  choices=PYR_STOPS),
         ParamSpec("adv_min", "decimal", "비율", "조정 전 사전 상승률(사용자 +50%)", Decimal("0.10"), Decimal("2")),
         ParamSpec("adv_n", "int", "거래일", "사전 상승 측정 구간(H 이전)", Decimal("20"), Decimal("250")),
         ParamSpec("base_min", "int", "거래일", "조정 최소 길이", Decimal("5"), Decimal("120")),
@@ -247,7 +252,7 @@ def build_spec() -> StrategySpec:
     )
 
 
-class R3TrendV7:
+class R3TrendV8:
     def __init__(self) -> None:
         self.spec = build_spec()
 
@@ -255,6 +260,9 @@ class R3TrendV7:
         dec = lambda k: Decimal(str(params[k]))  # noqa: E731
         num = lambda k: int(str(params[k]))      # noqa: E731
         stop_pct, tp_r, trail, pyr_at = dec("stop_pct"), dec("tp_r"), dec("trail_atr"), dec("pyr_at")
+        pyr_stop = str(params["pyr_stop"])
+        if pyr_stop not in PYR_STOPS:
+            raise ValueError(f"r3-trend: pyr_stop {pyr_stop}")
         exit_mode, exit_sma_n, hold_max = str(params["exit_mode"]), num("exit_sma_n"), num("hold_max")
         adv_min, adv_n, base_min, base_max = dec("adv_min"), num("adv_n"), num("base_min"), num("base_max")
         depth_min, depth_max, vol_mult, rs_min = dec("depth_min"), dec("depth_max"), dec("vol_mult"), dec("rs_min")
@@ -293,7 +301,7 @@ class R3TrendV7:
             close = xs[-1]
             if _held(v):
                 assert v.position is not None
-                sig = self._manage(snapshot, v, xs, bars, stop_pct, tp_r, trail, pyr_at, exit_mode, exit_sma_n, hold_max)
+                sig = self._manage(snapshot, v, xs, bars, stop_pct, tp_r, trail, pyr_at, exit_mode, exit_sma_n, hold_max, pyr_stop)
                 if sig is not None:
                     out.append(sig)
                 continue
@@ -330,7 +338,7 @@ class R3TrendV7:
 
     def _manage(self, snapshot: EvaluationSnapshot, v: InstrumentView, xs: list[Decimal], bars: Sequence[Bar],
                 stop_pct: Decimal, tp_r: Decimal, trail: Decimal, pyr_at: Decimal, exit_mode: str, exit_sma_n: int,
-                hold_max: int) -> Signal | None:
+                hold_max: int, pyr_stop: str = "e0") -> Signal | None:
         pos = v.position
         assert pos is not None
         avg, hd, qty = pos.avg_price, pos.holding_days, pos.quantity
@@ -349,7 +357,9 @@ class R3TrendV7:
         tp_level = e0 * (D1 + tp_r * stop_pct)
         i_tp = _first(seg, tp_level)
         took = i_tp is not None and i_tp < last_i and exit_mode in ("half_sma", "half_trail")
-        stop_line = e0 if pyramided else e0 * (D1 - stop_pct)
+        stop_line = e0 * (D1 - stop_pct)
+        if pyramided:                                        # v8: 증액 뒤 손절선 선택(none이면 그대로)
+            stop_line = {"none": stop_line, "half": e0 * (D1 - stop_pct / D2), "e0": e0, "avg": avg}[pyr_stop]
         a = _atr_at(bars, len(bars) - 1, _ATR_N)
         if a is not None and (exit_mode == "trail" or (exit_mode == "half_trail" and took)):
             stop_line = max(stop_line, peak - trail * a)
@@ -367,5 +377,8 @@ class R3TrendV7:
         if pyr_at > 0 and not pyramided and _first(seg, e0 * (D1 + pyr_at)) == last_i and not v.statuses:
             q = round_qty_down(qty * PYR_SIZE, D1)
             if q > 0:
-                return _signal(self.spec, snapshot, v, "INCREASE-1", RequestType.INCREASE, q, round_price_down(e0, D1))
+                new_avg = (avg * qty + _price_of(v) * q) / (qty + q)
+                stop_after = {"none": e0 * (D1 - stop_pct), "half": e0 * (D1 - stop_pct / D2), "e0": e0, "avg": new_avg}[pyr_stop]
+                return _signal(self.spec, snapshot, v, "INCREASE-1", RequestType.INCREASE, q,
+                               round_price_down(stop_after, D1))   # 손절가 = 증액 뒤 손절선(게이트 위험 계산용)
         return None
