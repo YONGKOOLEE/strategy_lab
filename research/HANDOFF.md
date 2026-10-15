@@ -54,7 +54,7 @@
 
 ## 6. 반드시 지킬 규칙
 - 사전 등록(notes.md) **저장 → 별도 호출로 실행**. 시각은 `date`로 확인해 적는다(2026-10-11·13 오기 사례 3건). 결과를 보고 기준·파라미터를 바꾸지 않는다. 이전 버전 코드는 `strategy-v<n>.py`로 보존.
-- **같은 PC에서 PAPER 엔진(python)이 돈다**: 평일 06:40~16:00 무거운 실행 금지(스크립트가 거부). `taskkill /IM python.exe` 같은 **이름 전체 종료 금지**(2026-10-13 18:06 work-universe 세션이 이것으로 전략실 실행을 끊음) — 필요하면 PID만. 긴 실행은 stderr를 로그 파일로 받는다. 첫 실행이 메시지 없이 동시에 exit 1이면 먼저 이 원인을 의심.
+- **같은 PC에서 PAPER 엔진(python)이 돈다**: 무거운 실행은 언제든 가능, 단 우선순위 BelowNormal·평일 06:40~16:00 병렬 최대 8(2026-10-14 사용자 결정으로 시간 금지 해제, 스크립트가 적용). `taskkill /IM python.exe` 같은 **이름 전체 종료 금지**(2026-10-13 18:06 work-universe 세션이 이것으로 전략실 실행을 끊음) — 필요하면 PID만. 긴 실행은 stderr를 로그 파일로 받는다. 첫 실행이 메시지 없이 동시에 exit 1이면 먼저 이 원인을 의심.
 - 운영 저장소(`C:\AI\trading_system\trading_system`)는 **읽기·운영 .venv로 코드 실행만**. `.env*` 읽기 금지, 네트워크·주문 금지.
 - 연구 프로필(`limits.research.toml`, A-093)과 legacy 기본 프로필 결과를 **섞어 비교하지 않는다**. 운영 커밋을 함께 기록.
 - U-B 명세: `universe_method="U-B", universe=(), universe_list="..."`, 검증은 `validate.ps1 -UB`. 배분 규칙: `-Allocation 모듈:클래스 -AllocationParams <절대경로> -Index <지수 CSV>`, 이때 기초 전략의 내장 국면 필터는 끈다.

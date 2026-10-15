@@ -22,7 +22,7 @@
 - 비밀정보: 앱키·시크릿·토큰·계좌번호를 요청·저장·출력하지 않는다. 운영 저장소의 `.env*` 파일을 읽지 않는다.
 - **운영 저장소에 쓰기 금지.** 운영 저장소는 (a) 읽기 (b) 운영 `.venv` 파이썬으로 운영 코드를 import·실행하는 것(검증 실행기, `tools/quick.py`, `tools/check-candidate.py`)만 한다. 결과는 항상 이 저장소 `results/`로. 운영 `config/`·`docs/`·`src/`·`var/`를 고치지 않는다. 후보를 운영으로 옮기는 일은 사용자가 운영 세션에서 지시할 때 그쪽에서 한다(§6).
 - 자동 실행 등록(작업 스케줄러 등), push, 패키지 설치(필요하면 목적·영향을 설명하고 승인받는다). 운영 `.venv`에는 표준 라이브러리 + pytest·requests·websockets만 있다 — pandas 없음.
-- 평일 06:40~16:00에 무거운 실행(quick·validate) 금지 — 같은 PC에서 PAPER 무인 운영이 돈다. 스크립트가 거부한다(평일 휴장일은 `-Holiday`).
+- 무거운 실행(quick·validate·sweep)은 언제든 가능하되 **항상 우선순위 BelowNormal**(스크립트가 설정), 평일 06:40~16:00에는 병렬 최대 8 — 같은 PC에서 PAPER 무인 운영이 돈다(2026-10-14 사용자 결정으로 시간 금지 해제).
 
 ## 3. 데이터 규칙
 - `data/`는 git 제외. 원본(2026-10-11부터)은 운영 `var\backtest\data\kiwoom-kospi200-adj-20261009`(키움 일봉, 수정주가, **코스피200 현재 구성 200종목** + `index/001.csv` KOSPI 지수 → `data/index/`). 어떤 원본을 썼는지는 `data/SOURCE.txt`. 다시 받으려면 `tools\sync-data.ps1`(이전 30종목은 `-Source …\kiwoom-ka10081-adj-20261007`). 2026-10-11 이전 결과(results/)는 30종목 기준 — 200종목 결과와 섞어 비교하지 않는다.

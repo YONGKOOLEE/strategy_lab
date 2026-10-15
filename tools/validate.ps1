@@ -1,6 +1,6 @@
 ﻿# 후보 전략을 운영 저장소의 검증 실행기(CP-030)로 미리 돌려 본다. 운영 저장소에는 아무것도 쓰지 않는다.
 # 결과: 전략실 results\<날짜>-<전략폴더>\ (판정표 validation-v<n>.md, 실행별 trades.csv·equity.csv·summary.json)
-# 실행 예 (평일 06:40~16:00 금지 — PAPER 무인 운영과 같은 PC):
+# 실행 예 (언제든 가능 — 우선순위 BelowNormal, 평일 06:40~16:00에는 workers 최대 8):
 #   powershell -NoProfile -ExecutionPolicy Bypass -File C:\AI\strategy-lab\tools\validate.ps1 -Candidate example_sma -Class ExampleSmaV1 -Version 1
 # 이 결과는 연구 참고다. 공식 판정은 운영 저장소에서 다시 돌린다.
 param(
@@ -32,9 +32,12 @@ $out = Join-Path $lab ("results\" + (Get-Date -Format 'yyyyMMdd') + "-$Candidate
 $py = Join-Path $Ops '.venv\Scripts\python.exe'
 foreach ($p in @($params, $data, $hol, $py)) { if (-not (Test-Path $p)) { throw "없음: $p (데이터는 tools\sync-data.ps1 먼저)" } }
 
+# 2026-10-14 사용자 결정(운영시간 제약 해제): 시간 금지 대신 낮은 우선순위 — 같은 PC의 PAPER 엔진이 항상 CPU를 먼저 쓴다(자식 python 상속)
+(Get-Process -Id $PID).PriorityClass = 'BelowNormal'
 $now = Get-Date
-if (-not $Holiday -and $now.DayOfWeek -ne 'Saturday' -and $now.DayOfWeek -ne 'Sunday' -and $now.TimeOfDay -ge [TimeSpan]'06:40' -and $now.TimeOfDay -lt [TimeSpan]'16:00') {
-    throw '평일 06:40~16:00에는 실행하지 않는다 (PAPER 무인 운영 보호). 평일 휴장일이면 -Holiday 를 붙인다.'
+if (-not $Holiday -and $now.DayOfWeek -ne 'Saturday' -and $now.DayOfWeek -ne 'Sunday' -and $now.TimeOfDay -ge [TimeSpan]'06:40' -and $now.TimeOfDay -lt [TimeSpan]'16:00' -and $Workers -gt 8) {
+    Write-Host "평일 장중(06:40~16:00): workers $Workers -> 8 (PAPER 보호, 우선순위 BelowNormal)"
+    $Workers = 8
 }
 
 $extra = @()
