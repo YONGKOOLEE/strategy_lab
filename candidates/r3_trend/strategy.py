@@ -11,6 +11,11 @@ v9 → v10(2026-10-16, 사용자 요청 "52주 신고가 매매" — 비교용 �
   vol_mult 하한 1 → 0. 이전 코드 strategy-v9.py.
 v10 → v11(2026-10-17, 사용자 매매 내역 peak 재현용 — research/2026-10-16-user-trades-analysis.md): exit_mode "sma"(1차 익절 없이
   종가 < SMA(exit_sma_n)이면 전량, 손절 −stop_pct 유지) · fresh_n 하한 0(0 = 연속 신고가도 인정). 기본값이면 v10과 동작 동일. 이전 코드 strategy-v10.py.
+v11 → v12(2026-10-17): 전 종목(약 2,500) 실행용 계산량 축소 — 판정에 최근 _TAIL(300)봉만 쓴다(모든 지표 253봉 이내, 워밍업·보유 상한이
+  넘으면 ValueError). 규칙·값 변화 없음(v11 결과와 바이트 동일 확인 대상). 이전 코드 strategy-v11.py.
+v12 → v13(2026-10-17, 사용자 요청 "유동성 필터·진입 우선순위, 보유 종목 제한 없음"): min_turnover(20일 평균 거래대금 하한, 억 원 =
+  종가×거래량 평균 / 1e8, 0 = 없음) · rank_by(빈자리 채우는 순서: rs = RS 점수 / turnover = 20일 평균 거래대금 / day_ret = 전일 상승률)
+  · max_pos 상한 10 → 100. 기본값(0·rs)이면 v12와 동작 동일. 이전 코드 strategy-v12.py.
 규칙(판정 1일 1회 09:30, 전일까지 확정 일봉. 아래 "전일" = bars[-1]):
 - 스크리닝(모드 3, 데이터 폴더 전 종목): ① 상대강도 RS ≥ rs_min — 점수 = 2×ROC63 + ROC126 + ROC189 + ROC252(오닐식 가중 12개월),
   같은 날 점수가 있는 종목 안 백분위(낮은 점수 종목 수 / (N−1) × 100) ② 일봉 정배열: 전일 종가 > SMA20 > SMA60 > SMA120
@@ -49,7 +54,8 @@ from trading_system.domain.strategy import (
 from trading_system.strategy.base import ParamValues, make_signal
 
 STRATEGY_ID = "r3-trend"
-VERSION = 11
+VERSION = 13
+_TAIL = 300            # v12: 판정에 쓰는 최근 봉 수(모든 지표가 253봉 이내 — 계산량만 줄임, 동작 동일)
 REGIME_CODE = "KOSPI"
 _INPUTS = ("CAP-DAT-01", "상태 입력")
 _ATR_N = 14
@@ -65,6 +71,7 @@ EXIT_MODES = ("all", "half_sma", "half_trail", "trail", "sma")
 PYR_STOPS = ("none", "half", "e0", "avg")
 ALIGNS = ("both", "daily", "weekly", "none")
 ENTRY_MODES = ("base", "high52")
+RANKS = ("rs", "turnover", "day_ret")
 _H52 = 251
 
 
@@ -261,7 +268,9 @@ def build_spec() -> StrategySpec:
         ParamSpec("vol_mult", "decimal", "배", "돌파일 거래량 / 50일 평균(0 = 조건 없음)", Decimal("0"), Decimal("5")),
         ParamSpec("rs_min", "decimal", "백분위", "상대강도 백분위 하한(사용자 70)", Decimal("0"), Decimal("99")),
         ParamSpec("hold_max", "int", "거래일", "최대 보유", Decimal("20"), Decimal("500")),
-        ParamSpec("max_pos", "int", "종목", "전략 보유 종목 상한(계좌 L6 이하로 운영)", Decimal("1"), Decimal("10")),
+        ParamSpec("max_pos", "int", "종목", "전략 보유 종목 상한(계좌 L6 이하로 운영)", Decimal("1"), Decimal("100")),
+        ParamSpec("min_turnover", "decimal", "억 원", "20일 평균 거래대금(종가×거래량) 하한, 0 = 없음", Decimal("0"), Decimal("10000")),
+        ParamSpec("rank_by", "str", "—", "빈자리 채우는 순서: rs / turnover(20일 평균 거래대금) / day_ret(전일 상승률)", choices=RANKS),
         ParamSpec("align", "str", "—", "정배열 조건: both = 일봉+주봉 / daily / weekly / none", choices=ALIGNS),
         ParamSpec("entry_mode", "str", "—", "진입 방식: base = 큰 상승 뒤 조정 돌파(v9) / high52 = 새 52주 신고가", choices=ENTRY_MODES),
         ParamSpec("fresh_n", "int", "거래일", "high52: 돌파 전 신고가가 없어야 하는 기간(0 = 연속 신고가도 인정)", Decimal("0"), Decimal("120")),
@@ -283,7 +292,7 @@ def build_spec() -> StrategySpec:
     )
 
 
-class R3TrendV11:
+class R3TrendV13:
     def __init__(self) -> None:
         self.spec = build_spec()
 
@@ -299,6 +308,9 @@ class R3TrendV11:
         depth_min, depth_max, vol_mult, rs_min = dec("depth_min"), dec("depth_max"), dec("vol_mult"), dec("rs_min")
         regime_n, max_pos, align = num("regime_n"), num("max_pos"), str(params["align"])
         entry_mode, fresh_n = str(params["entry_mode"]), num("fresh_n")
+        min_turnover, rank_by = dec("min_turnover"), str(params["rank_by"])
+        if rank_by not in RANKS:
+            raise ValueError(f"r3-trend: rank_by {rank_by}")
         if entry_mode not in ENTRY_MODES:
             raise ValueError(f"r3-trend: entry_mode {entry_mode}")
         if align not in ALIGNS:
@@ -310,6 +322,8 @@ class R3TrendV11:
         if pyr_at >= tp_r * stop_pct and pyr_at > 0:
             raise ValueError("r3-trend: pyr_at < 1차 익절")
         warmup = max(_RS_LAGS[-1] + 1, base_max + adv_n + 2, _DMA[-1], _VOL_N + 1, exit_sma_n)
+        if warmup > _TAIL or hold_max + 2 > _TAIL:
+            raise ValueError(f"r3-trend: 워밍업 {warmup}·보유 상한 {hold_max}이 최근 봉 {_TAIL}개를 넘음")
 
         out: list[Signal] = []
         scores: dict[str, Decimal] = {}
@@ -318,7 +332,7 @@ class R3TrendV11:
             if v.instrument == REGIME_CODE or not _ready(v) or len(v.daily_bars) < warmup:
                 continue
             views.append(v)
-            s = _rs_score([b.close for b in v.daily_bars])
+            s = _rs_score([b.close for b in v.daily_bars[-_TAIL:]])
             if s is not None:
                 scores[v.instrument] = s
         ranked = sorted(scores.values())
@@ -332,7 +346,7 @@ class R3TrendV11:
 
         cands: list[tuple[Decimal, str, InstrumentView]] = []
         for v in views:
-            bars = v.daily_bars
+            bars = v.daily_bars[-_TAIL:]
             xs = [b.close for b in bars]
             close = xs[-1]
             if _held(v):
@@ -353,7 +367,12 @@ class R3TrendV11:
                 continue                                       # 싼 조건부터(결과 동일, 계산량만 줄임)
             if (align in ("both", "daily") and not _daily_aligned(xs)) or (align in ("both", "weekly") and not _weekly_aligned(bars)):
                 continue
-            cands.append((scores[v.instrument], v.instrument, v))
+            turnover = sum((b.close * b.volume for b in bars[-20:]), Decimal("0")) / 20 / Decimal("100000000")
+            if min_turnover > 0 and turnover < min_turnover:
+                continue
+            key = (scores[v.instrument] if rank_by == "rs" else turnover if rank_by == "turnover"
+                   else (xs[-1] / xs[-2] - D1 if len(xs) >= 2 and xs[-2] > 0 else Decimal("-1")))
+            cands.append((key, v.instrument, v))
 
         held_total = sum(1 for v in snapshot.instruments if _held(v) and v.instrument != REGIME_CODE)
         free = max_pos - held_total

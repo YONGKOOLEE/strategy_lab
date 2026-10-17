@@ -88,3 +88,31 @@
 | stage8-p10 | max_pos 10, max_weight 0.10 | 같음 (4) |
 | stage8-p20 | max_pos 20, max_weight 0.05 | 같음 (4) |
 - 공통: entry_mode high52·fresh_n 0·vol_mult 0·exit_mode sma·exit_sma_n 20·stop 0.08·pyr 0. 탐색(판정 아님). 비교: 9년 손익·MDD·손익/MDD·거래 수·승률·투입 비율, 사용자 기록(승률 37%·손실 −8%·이익 보유 약 20일)과 모양이 닮는지.
+
+## 추가 등록 — stage9 전 종목(코스피+코스닥 보통주 2,511) (2026-10-17 14:36, Bash date, 실행 전)
+- 사용자 요청(2026-10-17): 전체 종목으로 테스트. 데이터 data/krall(tools/sync_krall.py: 운영 kiwoom-krall-adj-20261017 → 보통주, 2025-12-31까지, 우선주·스팩·리츠·2026 상장 제외, managed 표시로 거르지 않음).
+- 데이터 손질(실행 전 고정): 전일 대비 30% 초과 변동 368행 중 상·하한가 반올림(30~32%) 250행·거래정지 뒤 재개 77행에 corporate_action=1(운영 품질 검사가 그날부터 종목을 빼지 않게). 정지 없이 32% 초과 41행(13종목)은 이상치 유지(그날 이후 제외).
+- 코드 v12(최근 300봉, v11과 바이트 동일 확인). 한도 research/limits-explore-peak20.toml(미결정 가정). 기간 2017-01-01~2025-12-31 연속. 생존편향(상장폐지 없음) — 코스닥이 커서 코스피200보다 클 수 있음.
+
+| 이름 | 설정 |
+|---|---|
+| stage9-p3 / stage9-p10 | peak 재현(high52·fresh_n 0·vol 0·exit sma 20·stop 8%) × rs_min 0/70 × align none/both, 보유 3(비중 0.20) / 10(0.10) — 8 |
+| stage9-refA | 조정 돌파 A(adv 0.5·depth 0.35·vol 2.0·half_sma·보유 3) — 1 |
+| stage9-ref52 | 52주 새 신고가(fresh 20)·vol 2.0·half_sma·보유 8 — 1 |
+- 비교: 코스피200 같은 설정(stage1·stage7·stage8)과 9년 손익·MDD·손익/MDD·거래 수·승률·연도별. 판정 아님.
+
+## 추가 등록 — stage10 전 종목 peak + 유동성·우선순위, 보유 제한 없음 (2026-10-17 17:27, Bash date, 실행 전)
+- 사용자 지시(2026-10-17): 유동성 필터·진입 우선순위 시험, "보유 종목에 제한 두지 마".
+- 코드 v13 = v12 + min_turnover(20일 평균 종가×거래량, 억 원)·rank_by(rs/turnover/day_ret)·max_pos 상한 100. 기본값 = v12 동작(9년 C 바이트 동일 확인). 이전 코드 strategy-v12.py.
+- 한도 research/limits-explore-unlimited.toml(L6 100·L5 30·L4 5%, 나머지 peak20과 같음 — 미결정 가정). 보유 수는 현금·L3(100%, 상한가 ×1.3 기준)이 정함.
+- 공통: data/krall(보통주 2,511, corporate_action 손질), 2017~2025, peak 재현(high52·fresh_n 0·vol 0·exit sma 20·stop 8%·pyr 0), align both(stage9 전 종목에서 none보다 나음 — 결과를 본 뒤 고정한 값임을 기록), max_pos 100, max_weight 0.05(위험 1% 설정이지만 비중 5%가 묶어 실제 위험 약 0.4%).
+- 축: min_turnover 0/10/50(억) × rank_by rs/turnover/day_ret = 9. 동시 5(메모리 — 전 종목 실행당 최대 약 4GB).
+- 비교: stage9 peak(보유 3)·사용자 peak 기록(약 20종목). 손익·MDD·손익/MDD·거래 수·평균 동시 보유·투입 비율·연도별. 판정 아님.
+
+## 추가 등록 — fastsim 그리드 grid1: peak 계열 전 종목 튜닝 (2026-10-17 19:47, Bash date, 실행 전)
+- 도구 tools/fastsim.py(전략실 빠른 시뮬레이터, 1회 약 1초). **운영 엔진과 대조 완료**: next_open·stop close 모드에서 stage9 peak(전 종목) 3,226만 vs 엔진 3,225만·MDD 45.31% vs 45.3%·9년 일별 자산 최대 차이 19,048원, stage8 peak(코스피200) 9,597만·MDD 27.9% 동일. 대조 중 반영한 엔진 규칙: 품질 검사 접두 제외, 09:30 시가 기준 수량·손절가 내림, 호가 단위 슬리피지, 상·하한가(상한가 매수·하한가 매도 미체결), 거래량 10% 부분 체결(매수·매도), 게이트 L1·L2·L3·L5·L7·현금 예약, K2.
+- **새 모드는 근사(엔진에 없음)**: stop=intraday(장중 손절: 시가 ≤ 손절선이면 시가, 저가 ≤ 손절선이면 손절선 가격, 하한가면 미체결), entry=close(신고가 당일 종가 매수 — 종가를 보고 종가에 사는 **낙관 근사**), exit=close(20일선 종가 이탈 당일 종가 매도).
+- 공통: data/krall(보통주 2,511), 2017-01-01~2025-12-31, 진입 high52·fresh_n 0, exit_sma_n 20, 위험 1%, 한도 l1 2%·l2 30%·l3 100%·l4 3%·l7 20%·max_new 30(보유 많을 때 신규 제한 완화).
+- 축(2,592): stop close/intraday × entry next_open/close × align none/both × (max_pos, max_weight) (3,0.20)/(10,0.10)/(20,0.05)/(100,0.05) × min_turnover 0/10/50 × rank_by rs/turnover/day_ret × vol_mult 0/1.5/2 × stop_pct 0.06/0.08/0.10.
+- 해석(고정): 판정 아님. 2,592조합 = 극단적 다중 비교 → 최고 조합은 과대 추정. 볼 것: ① 축별 효과(다른 축 평균), ② 이웃 조합이 함께 좋은 평탄한 영역, ③ 손익/MDD·양수 연도. 고른 값은 2026 최종 확인(운영)·PAPER로만 확인. 생존편향(상장폐지 없음).
+- grid1 실행 메모(19:5x): 첫 실행은 max_pos만 그리드에 넣고 max_weight를 0.20 고정으로 둔 설정 실수 → PID 중지(결과 없음), 사전 등록대로 (보유, 비중) 쌍별 4개(grid1-p3·p10·p20·p100, 각 648조합)로 재실행.
