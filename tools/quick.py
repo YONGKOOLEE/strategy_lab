@@ -58,11 +58,17 @@ def main(argv: list[str]) -> int:
     p.add_argument("--limits", default=None,
                    help="계좌 한도 파일 지정(기본 운영 config/limits.backtest.toml). 전략실 사본으로 규모 실험 — 결과는 '사용자 미결정 한도 가정'")
     p.add_argument("--ops", default=str(OPS_DEFAULT))
+    p.add_argument("--no-fast", action="store_true", help="가속 캐시(tools/speedups.py) 끄기 — 결과 동일성 확인용")
     ns = p.parse_args(argv)
 
     ops = Path(ns.ops)
     sys.path.insert(0, str(ops / "src"))
     sys.path.insert(0, str(LAB))
+    if not ns.no_fast:
+        sys.path.insert(0, str(LAB / "tools"))
+        import speedups
+        speedups.install()
+        speedups.install_snapshot()   # 증분 스냅숏(2026-10-17) — 운영 코드 지문이 다르면 스스로 설치 안 함
     from trading_system.app.backtest import BacktestConfig, BacktestError
     from trading_system.app.main import _load_common, load_daily_csv
     from trading_system.app.validation import ValidationError, Window, run_window, walkforward_windows

@@ -3,7 +3,8 @@
 <!-- 양식: 운영 docs/templates/strategy-template.md. 전략실 연구 후보 — 운영 등록 없음. 원본 규칙 = candidates/r3_trend/strategy.py (v7). 사용자 규칙 = ideas/2026-10-11-r3-trend.md "사용자 정정 (2026-10-14)". -->
 
 - 전략 ID / 이름: r3-trend / R3 추세추종 v7(CAN SLIM식 스크리닝·큰 상승 뒤 조정 돌파·1:3 익절)
-- 버전: v8 (규칙·파라미터 변경 시 +1, 이전 검증 결과 승계 없음 — D-011)
+- 버전: v9 (규칙·파라미터 변경 시 +1, 이전 검증 결과 승계 없음 — D-011)
+- v8 → v9(2026-10-16): `max_pos`(전략 보유 상한 1~10, 기본 3)·`align`(정배열 조건 both/daily/weekly/none, 기본 both) 추가. 기본값이면 v8과 동작 동일. 이전 코드 `strategy-v8.py`, 파라미터 `params-v9.toml`. ENTRY-1의 "보유 수 < 3"은 "보유 수 < max_pos", 정배열 조건은 align에 따름.
 - v7 → v8(2026-10-15): `pyr_stop` 추가 — 증액 뒤 손절선 none(−stop_pct 유지)·half(e0×(1−stop_pct/2))·e0(본전, v7 동작)·avg(증액 후 평균 단가). 기본 e0이면 v7과 동작 동일. 이전 코드 `strategy-v7.py`, 파라미터 `params-v8.toml`(기준 vol 2.0·exit all — 탐색 기준점).
 - 변경 이력: **v1~v6은 사용자 규칙 오해석(+8/+16/+24% 분할 익절·1R 뒤 본전 이동) → v7 전면 교체, 이전 결과 승계 없음. 이전 코드 `strategy-v6.py`.** 변경 이유(사용자 정정 2026-10-14): 손절 −8%(1R)·손익비 1:3이므로 1차 익절은 +24%(3R) 이상부터이고, 본전 손절 이동은 피라미딩했을 때만이다. 스크리닝은 오닐 CAN SLIM을 러프한 넓은 후보군 규칙으로(RS ≥ 70, 일·주봉 정배열), 타점은 큰 상승 → 조정 → 전고점 돌파 + 거래량 급증. 한 거래 손실 ≤ 총자본 2%, 보통 1%.
 - 설명: 같은 날 점수가 있는 전 종목 안 RS 백분위 ≥ rs_min이고 일봉(종가>SMA20>SMA60>SMA120)·주봉(종가>10주>30주) 정배열인 종목 중, H 이전 adv_n일 대비 adv_min 이상 오른 조정 고점 H를 base_min일 이상·깊이 depth_min~depth_max 조정한 뒤 전일 종가로 처음 돌파하고 거래량이 50일 평균×vol_mult 이상이면 진입. 손절 −stop_pct(1R), 1차 익절 +tp_r×stop_pct(기본 +24%), 피라미딩(선택)했을 때만 손절선 본전, 보유 hold_max거래일 만료. 익절 방식(exit_mode)·피라미딩(pyr_at)·타점 수치는 사용자가 정하기 어렵다고 하여 탐색으로 고른다.
@@ -66,6 +67,8 @@
 | trail_atr | decimal | 배 | 1~6 | 트레일 폭(ATR14 배수) (3) |
 | pyr_at | decimal | 비율 | 0~0.20 | 피라미딩 트리거 상승률(0 = 없음). 증액 0.5배 1회, 손절선은 pyr_stop (0, 탐색 축 0/0.04/0.08, stage3 0.08/0.12/0.16) |
 | pyr_stop | str | — | none·half·e0·avg | 증액 뒤 손절선(v8). none = e0×(1−stop_pct) 유지 / half = e0×(1−stop_pct/2) / e0 = 본전 / avg = 증액 후 평균 단가 (e0) |
+| max_pos | int | 종목 | 1~10 | 전략 보유 종목 상한(계좌 L6 이하) (3) |
+| align | str | — | both·daily·weekly·none | 정배열 조건: both = 일봉+주봉 / daily / weekly / none (both) |
 | adv_min | decimal | 비율 | 0.10~2 | 조정 전 사전 상승률(사용자 +50%) (0.5, 탐색 1단계 축 0.3/0.5/0.7) |
 | adv_n | int | 거래일 | 20~250 | 사전 상승 측정 구간(H 이전) (126) |
 | base_min | int | 거래일 | 5~120 | 조정 최소 길이 (15) |
