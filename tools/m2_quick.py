@@ -40,6 +40,8 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument("--l2", default="1.0", help="가정 한도 L2 종목 비중")
     ap.add_argument("--l3", default="1.0", help="가정 한도 L3 총 노출")
     ap.add_argument("--l7", default="1000000000", help="가정 한도 L7 1회 주문 최대(USDT)")
+    ap.add_argument("--module", default=None, help="전략 모듈 경로(기본 candidates.<candidate>.strategy:<cls>) — 연구용 사본")
+    ap.add_argument("--lot-step", default="0.00001", help="수량 단위(BTCUSDT 0.00001, ETHUSDT 0.0001 가정)")
     ap.add_argument("--ops-limits", action="store_true", help="운영 M2 PAPER 한도(config/m2/limits.paper.toml) 사용")
     return ap
 
@@ -78,14 +80,14 @@ def run_engine(ns: argparse.Namespace, out: Path):  # type: ignore[no-untyped-de
 
     folder = LAB / "candidates" / ns.candidate
     params_path = Path(ns.params) if ns.params else folder / f"params-v{ns.version}.toml"
-    strat, params = load_strategy(StrategyDeploy(f"candidates.{ns.candidate}.strategy:{ns.cls}", params_path.resolve(), ()))
+    strat, params = load_strategy(StrategyDeploy(ns.module or f"candidates.{ns.candidate}.strategy:{ns.cls}", params_path.resolve(), ()))
     rows = []
     with (LAB / "data" / "crypto" / f"{ns.symbol}-1d.csv").open(encoding="utf-8") as f:
         for r in csv.DictReader(f):
             rows.append(Bar(date.fromisoformat(r["date"]), D(r["open"]), D(r["high"]), D(r["low"]), D(r["close"]), D(r["volume"])))
     rules = SymbolRules(instrument=ns.symbol, tick_size=D("0.01"), min_price=D("0.01"), max_price=D("1000000"),
-                        lot_min_qty=D("0.00001"), lot_max_qty=D("9000"), lot_step=D("0.00001"), market_min_qty=D("0.00001"),
-                        market_max_qty=D("9000"), market_step=D("0.00001"), min_notional=D("5"), max_notional=None,
+                        lot_min_qty=D(ns.lot_step), lot_max_qty=D("9000"), lot_step=D(ns.lot_step), market_min_qty=D(ns.lot_step),
+                        market_max_qty=D("9000"), market_step=D(ns.lot_step), min_notional=D("5"), max_notional=None,
                         apply_min_to_market=True, apply_max_to_market=False)
     if ns.ops_limits:
         limits = load_limits_file(OPS / "config" / "m2" / "limits.paper.toml", market="M2").limits

@@ -44,7 +44,7 @@ RS_LAGS = (63, 126, 189, 252)
 # --- 데이터·지표 (종목별 1회) -----------------------------------------------------------------------
 
 class Stock:
-    __slots__ = ("code", "d", "o", "h", "l", "c", "v", "pos", "h52new", "rs", "dal", "wal", "vavg", "turn", "sma", "bad")
+    __slots__ = ("code", "d", "o", "h", "l", "c", "v", "pos", "h52new", "rs", "dal", "wal", "vavg", "turn", "sma", "bad", "brk")
 
     def __init__(self, code: str, rows: list[list[str]], sma_ns: tuple[int, ...], fresh_ns: tuple[int, ...],
                  cal_set: set | None = None, ca_col: int | None = None) -> None:
@@ -134,6 +134,21 @@ class Stock:
             tp.append(tp[-1] + x * y)
         self.turn = [(tp[k + 1] - tp[k - 19]) / 20 / 1e8 if k >= 19 else 0.0 for k in range(n)]   # 억 원
         self.pos = {dd: k for k, dd in enumerate(self.d)}
+        self.brk: dict[int, list[bool]] = {}           # brk_n별 "종가 > 직전 n일 종가 최고"(필요할 때 계산)
+
+    def breakout(self, n: int) -> list[bool]:
+        if n not in self.brk:
+            c, out, dq = self.c, [False] * len(self.c), deque()
+            for k in range(len(c)):
+                while dq and dq[0] < k - n:
+                    dq.popleft()
+                if k >= n and dq:
+                    out[k] = c[k] > c[dq[0]]
+                while dq and c[dq[-1]] <= c[k]:
+                    dq.pop()
+                dq.append(k)
+            self.brk[n] = out
+        return self.brk[n]
 
 
 def load(data: Path, sma_ns: tuple[int, ...], fresh_ns: tuple[int, ...]) -> tuple[list[date], list[Stock]]:
@@ -196,7 +211,10 @@ def simulate(cal: list[date], stocks: list[Stock], P: dict, start: date, end: da
                 continue
             if s.rs[k] is not None:
                 rs_today.append(s.rs[k])
-            if si in exclude or not s.h52new[fresh][k]:          # 엔진 전략과 같게: 거래량 0(정지일)도 후보에서 빼지 않음
+            sig = s.breakout(P["brk_n"])[k] if P["brk_n"] else s.h52new[fresh][k]   # brk_n > 0: N일 종가 돌파(2026-10-18 X)
+            if si in exclude or not sig:          # 엔진 전략과 같게: 거래량 0(정지일)도 후보에서 빼지 않음
+                continue
+            if P["gate_sma"] and (s.sma[P["gate_sma"]][k] is None or s.c[k] <= s.sma[P["gate_sma"]][k]):
                 continue
             if P["vol_mult"] > 0 and (s.vavg[k] is None or s.v[k] < P["vol_mult"] * s.vavg[k]):
                 continue
@@ -395,10 +413,10 @@ def simulate(cal: list[date], stocks: list[Stock], P: dict, start: date, end: da
 DEFAULTS = {"cash": 1e8, "stop_pct": 0.08, "exit_sma_n": 20, "max_pos": 3, "fresh_n": 0, "vol_mult": 0.0, "align": "both",
             "rs_min": 0.0, "min_turnover": 0.0, "rank_by": "rs", "risk_ratio": 0.01, "max_weight": 0.20, "hold_max": 250,
             "order_cap": 1e8, "volume_cap": 0.10, "max_new": 5, "l1": 0.02, "l2": 0.30, "l3": 1.00, "l4": 0.03, "l7": 0.20,
-            "entry": "next_open", "stop": "close", "exit": "next_open"}
+            "entry": "next_open", "stop": "close", "exit": "next_open", "brk_n": 0, "gate_sma": 0}
 NUM = {"cash", "stop_pct", "vol_mult", "rs_min", "min_turnover", "risk_ratio", "max_weight", "volume_cap", "l1", "l2", "l3",
        "l4", "l7", "order_cap"}
-INT = {"exit_sma_n", "max_pos", "fresh_n", "hold_max", "max_new"}
+INT = {"exit_sma_n", "max_pos", "fresh_n", "hold_max", "max_new", "brk_n", "gate_sma"}
 
 
 def main(argv: list[str]) -> int:
@@ -421,7 +439,8 @@ def main(argv: list[str]) -> int:
     grid = [(k.strip(), [conv(k.strip(), x.strip()) for x in vs.split(",")])
             for k, vs in (p.split("=", 1) for p in ns.grid.split(";") if p.strip())]
     combos = [dict(zip([k for k, _ in grid], vals)) for vals in itertools.product(*[v for _, v in grid])] or [{}]
-    sma_ns = tuple({base["exit_sma_n"]} | {c.get("exit_sma_n", base["exit_sma_n"]) for c in combos})
+    sma_ns = tuple({base["exit_sma_n"]} | {c.get("exit_sma_n", base["exit_sma_n"]) for c in combos}
+                   | {g for g in [base["gate_sma"]] + [c.get("gate_sma", 0) for c in combos] if g})
     fresh_ns = tuple({base["fresh_n"]} | {c.get("fresh_n", base["fresh_n"]) for c in combos})
     t0 = time.monotonic()
     cal, stocks = load(Path(ns.data), sma_ns, fresh_ns)

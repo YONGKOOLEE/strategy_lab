@@ -30,12 +30,16 @@ def write_params(folder: Path, name: str, p: dict) -> Path:
     folder.mkdir(parents=True, exist_ok=True)
     f = folder / f"{name}.toml"
     body = "\n".join(f"{k} = {v}" if isinstance(v, int) else f'{k} = "{v}"' for k, v in p.items())
-    f.write_text(f'strategy = "btc-trend"\nversion = 1\n\n[params]\n{body}\n', encoding="utf-8")
+    f.write_text(f'strategy = "{SYM["sid"]}"\nversion = 1\n\n[params]\n{body}\n', encoding="utf-8")
     return f
+
+
+SYM = {"sym": "BTCUSDT", "module": None, "lot": "0.00001", "sid": "btc-trend"}
 
 
 def run(out: Path, label: str, params: Path, start: date, end: date, **lim: str) -> dict:
     args = ["--candidate", "btc_trend", "--cls", "BtcTrendV1", "--version", "1", "--params", str(params),
+            "--symbol", SYM["sym"], "--lot-step", SYM["lot"]] + (["--module", SYM["module"]] if SYM["module"] else []) + [
             "--start", start.isoformat(), "--end", end.isoformat(), "--label", label]
     for k, v in lim.items():
         args += [f"--{k}", str(v)]
@@ -50,7 +54,7 @@ def run(out: Path, label: str, params: Path, start: date, end: date, **lim: str)
 
 
 def buy_hold(start: date, end: date, fee: float = 0.001, slip: float = 0.0005) -> tuple[float, float]:
-    with (LAB / "data" / "crypto" / "BTCUSDT-1d.csv").open(encoding="utf-8") as fh:
+    with (LAB / "data" / "crypto" / f"{SYM['sym']}-1d.csv").open(encoding="utf-8") as fh:
         rows = [r for r in csv.DictReader(fh) if start.isoformat() <= r["date"] <= end.isoformat()]
     q = 1 / (float(rows[0]["open"]) * (1 + slip) * (1 + fee))
     peak, mdd = 0.0, 0.0
@@ -71,7 +75,7 @@ def tag(name: str) -> str:
 
 
 def verdict() -> int:
-    out = LAB / "results" / "m2" / f"{date.today():%Y%m%d}-preverdict"
+    out = LAB / "results" / "m2" / f"{date.today():%Y%m%d}-preverdict{'' if SYM['sym'] == 'BTCUSDT' else '-' + SYM['sym']}"
     pdir = out / "params"
     sets = {"base": ({}, BASE), "slip0.2%": ({"slip": "0.002"}, BASE), "slip0.1%": ({"slip": "0.001"}, BASE)}
     for k, v in VARIANTS:
@@ -138,4 +142,7 @@ def limits() -> int:
 
 
 if __name__ == "__main__":
+    if sys.argv[1:] == ["verdict", "ETHUSDT"]:
+        SYM.update(sym="ETHUSDT", module="research.eth_probe_strategy:EthTrendProbe", lot="0.0001", sid="eth-trend-probe")
+        sys.exit(verdict())
     sys.exit(verdict() if sys.argv[1:] == ["verdict"] else limits() if sys.argv[1:] == ["limits"] else 2)

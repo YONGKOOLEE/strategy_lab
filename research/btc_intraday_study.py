@@ -12,7 +12,7 @@ import math
 import statistics as st
 import sys
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 LAB = Path(__file__).resolve().parents[1]
@@ -27,8 +27,12 @@ FULL = (date(2017, 9, 1), date(2025, 12, 31))
 
 
 class Data:
-    def __init__(self) -> None:
-        self.hours = [h for h in load_hours(LAB / "data" / "crypto" / "BTCUSDT-1h.csv") if h[0].date() <= FULL[1]]
+    def __init__(self, sym: str = "BTCUSDT", tf: str = "1h", offset: int = 0) -> None:   # tf: 판정 봉(15m = M), offset: 하루 시작 UTC 시(O)
+        self.sym = sym
+        self.offset = offset
+        self.hours = [h for h in load_hours(LAB / "data" / "crypto" / f"{sym}-{tf}.csv") if h[0].date() <= FULL[1]]
+        if offset:                                     # 하루 = [offset시, 다음 날 offset시) — 시각을 당겨 같은 코드로 처리(O)
+            self.hours = [(t - timedelta(hours=offset), *rest) for t, *rest in self.hours]
         days: dict[date, list[float]] = {}
         for t, o, h, l, c, _ in self.hours:
             b = days.get(t.date())
@@ -44,6 +48,9 @@ class Data:
         self.cl = cl
         self.atr = [sum(tr[k - 13:k + 1]) / 14 if k >= 14 else None for k in range(len(cl))]   # 날짜 k까지 포함한 ATR14
         va = {}
+        if sym != "BTCUSDT":                           # 가격대 거래량 사본은 BTC만 — 다른 종목은 VP 규칙을 쓰지 않음
+            self.va = va
+            return
         with BINS.open(encoding="utf-8") as f:
             for line in f:
                 o = json.loads(line)
@@ -54,7 +61,7 @@ class Data:
         return sum(self.cl[k - n + 1:k + 1]) / n if k + 1 >= n else None
 
 
-def simulate(D: Data, strat, start: date, end: date, slip: float) -> dict:  # type: ignore[no-untyped-def]
+def simulate(D: Data, strat, start: date, end: date, slip: float, exec_hour: int = 0) -> dict:  # type: ignore[no-untyped-def]
     cash, qty, entry, stop, target = 10000.0, 0.0, 0.0, None, None
     pend = None
     trades, curve = [], []
@@ -63,7 +70,7 @@ def simulate(D: Data, strat, start: date, end: date, slip: float) -> dict:  # ty
     for i, (t, o, h, l, c, _) in enumerate(D.hours):
         if not (start <= t.date() <= end):
             continue
-        if pend is not None:
+        if pend is not None and (exec_hour == 0 or t.hour >= exec_hour):   # exec_hour: 일봉 판정 체결 지연 시험(I, 정보)
             kind, meta = pend
             if kind == "buy" and qty == 0:
                 px = o * (1 + slip)
@@ -124,7 +131,7 @@ def buy_hold(D: Data, start: date, end: date) -> dict:
 
 
 # ---- (a) v1: 일봉(23시 봉 종가) / 1시간 판정판 ----
-def v1(hourly: bool, entry_n: int = 25, exit_n: int = 50, stop_atr: float = 2.0, risk: float = 0.05, maxw: float = 0.98):  # type: ignore[no-untyped-def]
+def v1(hourly: bool, entry_n: int = 25, exit_n: int = 50, stop_atr: float = 2.0, risk: float = 0.05, maxw: float = 0.98, gate: bool = False, istop: bool = False, exit_daily: bool = False):  # type: ignore[no-untyped-def]
     def f(D: Data, i: int, t: datetime, c: float, holding: bool, s: dict, entry: float):  # type: ignore[no-untyped-def]
         k = D.di[t.date()]
         if not hourly and t.hour != 23:
@@ -145,16 +152,18 @@ def v1(hourly: bool, entry_n: int = 25, exit_n: int = 50, stop_atr: float = 2.0,
         if atr is None:
             return None
         if holding:
-            if c < s["stop"]:
+            if exit_daily and t.hour != 23:            # V: 청산은 23시 봉 종가(일봉 종가)에만
+                return None
+            if not istop and c < s["stop"]:            # istop: 장중 손절 감시(N) — 시뮬레이터가 저가로 처리
                 return ("sell", "stop_close")
             if c < sma:
                 return ("sell", "sma")
             return None
-        if c > hi25:
+        if c > hi25 and (not gate or c > sma):        # gate: 진입 즉시 청산 상태 금지(2026-10-18 A)
             s["atr0"] = atr
             def stopset(px: float, a: float = atr) -> float:
                 s["stop"] = px - stop_atr * a
-                return None  # type: ignore[return-value]
+                return s["stop"] if istop else None  # type: ignore[return-value]
             return ("buy", {"w": lambda px, a=atr: min(maxw, risk / (stop_atr * a / px)), "stop": stopset})
         return None
     return f

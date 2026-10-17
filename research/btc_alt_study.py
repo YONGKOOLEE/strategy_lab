@@ -75,7 +75,9 @@ def daily_rets(curve: list) -> list[float]:
 
 
 def main() -> int:
-    hours = load_hours(LAB / "data" / "crypto" / "BTCUSDT-1h.csv")
+    sym = sys.argv[1] if len(sys.argv) > 1 else "BTCUSDT"   # 2026-10-18: ETHUSDT 같은 표
+    hours = load_hours(LAB / "data" / "crypto" / f"{sym}-1h.csv")
+    print(f"[{sym}]")
     dailies = {off: daily_with_offset(hours, off) for off in range(24)}
     C = cfgs()
     table: dict[str, dict] = {}
@@ -126,7 +128,7 @@ def main() -> int:
     for n, cr in cors.items():
         print(f"추세(위험5%)와 상관 — {n}: 일별 {cr['daily']:+.2f}, 연도별 {cr['yearly']:+.2f}  "
               + " ".join(f"{y}:{a:+.0%}/{b:+.0%}" for y, (a, b) in cr["years"].items()))
-    out = LAB / "results" / "cryptosim" / f"{date.today():%Y%m%d}-alt-study.json"
+    out = LAB / "results" / "cryptosim" / f"{date.today():%Y%m%d}-alt-study{'' if sym == 'BTCUSDT' else '-' + sym}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"table": table, "pick": {"S1": s1, "S2": s2}, "corr": cors}, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     print(f"\n저장: {out.relative_to(LAB)}")

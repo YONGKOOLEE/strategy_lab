@@ -13,7 +13,7 @@
 - CAP-TRG-01: 정해진 시각 1회 판정(매일 UTC 00:15 — 운영 M2 백테스트 기본, 주문 창 UTC 00:10~23:50 안). 주기·분봉·이벤트 판정 불필요.
 - CAP-DAT-01: 확정된 UTC 일봉(OHLC)만. 진행 중 봉은 쓰지 않음(V-142).
 - CAP-ORD-01: 매수 지정가(운영이 IOC 가격 = 시가×(1+완충)을 정함, D-104), 매도 시장가.
-- CAP-INS-01: 현물 1종목.
+- CAP-INS-05: 크립토 현물 1종목. [운영 F-1 반영 2026-10-18 — 원본 CAP-INS-01(국내 상장주식)은 M2 등록 거부. 운영 검증 시 validate_rules(LOT_STEP = 거래소 stepSize)·validate_deploy(판정 시각 1개·M2 전용) 추가(F-2·F-3) — 판정·수량·신호 무변경]
 
 ## 필요 데이터
 - BTCUSDT UTC 일봉 open·high·low·close, 워밍업 max(entry_n+1, exit_n, 15) = 50봉.
