@@ -37,6 +37,7 @@
 - 운영(feat/crypto-trend-v1-review 9fdb517, 미병합·미등록): 복사 동일, BACKTEST 등록 통과, PAPER 거부(능력 검증 중), ETHUSDT가 유니버스(A-096)에 없어 M2 조립 거부. 근사 실행(BTC만, 일봉 실행기) 27건 = 전략실 일봉판과 일치. 60분 재현은 1분봉 실행기에 여러 심볼·확정 일봉 입력 필요(T-068 범위 확장 — 사용자 결정).
 - 결함 F-1(period_minutes 없음)·F-2(validate_deploy 23개 vs D-219 빈 목록) → **전략실 crypto-trend v2로 수정**(CryptoTrendV2, params-v2·v2-paper, 매매 규칙 무변경 — 재생 105건·+6,964% 동일, 운영 엔진 55건·거부 0 동일, 구조 검사 통과). F-3(validate_rules에 종목 없음)은 운영 공통 CP 권장.
 - 운영에 v2 재검토를 맡길지는 사용자 결정(운영 대화 승인 필요) — 지시문은 candidates/crypto_trend/handoff.md 맨 아래(v2로 갱신됨).
+- 운영 회신(03:1x): v2 수령 — 재검토 착수는 사용자 승인 뒤(운영 인계 결정 대기 0번). 테스트넷 ETHUSDT stepSize 0.0001·tick 0.01·minNotional 5 확인(전략실 가정과 일치 → 문서 정정). F-3 공통 CP·T-068 범위 확장은 운영 인계의 사용자 결정 항목.
 
 ## 4. 다음 할 일 (사용자 결정 → 전략실 행동)
 | # | 할 일 | 누가 | 메모 |

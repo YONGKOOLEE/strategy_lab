@@ -14,7 +14,7 @@
 | 항목 | 제안 | 운영 확인 |
 |---|---|---|
 | 유니버스 | U-A (BTCUSDT, ETHUSDT) — A-096 변경 필요 | 사용자 승인 |
-| 전략 | btc-trend 규칙 그대로, 크기만 종목별 위험 2.5%·종목 상한 49% (새 버전 — 전략실이 strategy.py v2로 만들지는 운영 의견 뒤) | 심볼별 LOT_STEP(ETHUSDT stepSize 0.0001 가정 — exchangeInfo 확인), validate_rules 심볼별 |
+| 전략 | btc-trend 규칙 그대로, 크기만 종목별 위험 2.5%·종목 상한 49% (새 버전 — 전략실이 strategy.py v2로 만들지는 운영 의견 뒤) | 심볼별 LOT_STEP(ETHUSDT stepSize 0.0001 — 운영 테스트넷 확인(binance-spot §15)), validate_rules 심볼별 |
 | 한도(LIVE 규모 참고) | **L1 ≥ 2.75%**, L2 50%, L3 100%, L6 2 — 전략실이 운영 M2 엔진(app.backtest_m2, 읽기·실행만)으로 2종목 동시 실행 확인: L1 2.75%에서 82건(BTC 40·ETH 42)·+4,303%·MDD 30.4%·거부 0, L1 2.5%는 G7 거부 618 | 운영 공식 실행·승인 한도 |
 | 판정 | 종목별 7창(또는 6창) 표 + 합산 | C-2 처리(CP-038) |
 

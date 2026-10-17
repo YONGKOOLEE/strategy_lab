@@ -30,7 +30,7 @@ from trading_system.strategy.base import ParamValues, make_signal
 
 STRATEGY_ID = "crypto-trend"
 VERSION = 2
-# 종목 → 수량 단위(바이낸스 LOT_SIZE stepSize). BTCUSDT는 테스트넷 확인값(binance-spot.md), ETHUSDT 0.0001은 가정 — 운영 exchangeInfo로 확인
+# 종목 → 수량 단위(바이낸스 LOT_SIZE stepSize). BTCUSDT는 테스트넷 확인값(binance-spot.md), ETHUSDT 0.0001도 테스트넷 확인값(운영 binance-spot §15, 2026-10-18)
 STEPS = {"BTCUSDT": Decimal("0.00001"), "ETHUSDT": Decimal("0.0001")}
 PERIOD_MINUTES = 60                # 60분 주기(01:00~23:00 하루 23회, 운영 CP-040 D-258·V-337) — 15분은 전략실 시험에서 열위(research M)
 _ATR_N = 14
