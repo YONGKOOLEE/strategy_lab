@@ -22,7 +22,7 @@ OPS = Path(r"C:\AI\trading_system\trading_system")
 D = Decimal
 
 
-def main(argv: list[str]) -> int:
+def parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser()
     ap.add_argument("--candidate", required=True)
     ap.add_argument("--cls", required=True)
@@ -36,11 +36,35 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--slip", default="0.0005")
     ap.add_argument("--fee", default="0.001")
     ap.add_argument("--l4", default="0.30", help="가정 한도의 일일 손실 정지 비율(기본 30%% — 사실상 끔, 미결정)")
+    ap.add_argument("--l1", default="0.06", help="가정 한도 L1 1회 최대 손실 비율(기본 6%%)")
+    ap.add_argument("--l2", default="1.0", help="가정 한도 L2 종목 비중")
+    ap.add_argument("--l3", default="1.0", help="가정 한도 L3 총 노출")
+    ap.add_argument("--l7", default="1000000000", help="가정 한도 L7 1회 주문 최대(USDT)")
     ap.add_argument("--ops-limits", action="store_true", help="운영 M2 PAPER 한도(config/m2/limits.paper.toml) 사용")
-    ns = ap.parse_args(argv)
+    return ap
+
+
+def main(argv: list[str]) -> int:
+    ns = parser().parse_args(argv)
     if date.fromisoformat(ns.end) >= date(2026, 1, 1):
         print("2026 이후는 최종 확인 구간 — 쓰지 않는다")
         return 2
+    out = LAB / "results" / "m2" / f"{date.today():%Y%m%d}-{ns.candidate}-{ns.label}"
+    if out.exists():
+        print(f"이미 있음(라벨 변경): {out}")
+        return 2
+    res, cfg, lim_note, strat = run_engine(ns, out)
+    eq = res.equity
+    print(f"== M2 엔진: {strat.spec.strategy_id} v{ns.version} [{ns.label}] {ns.start}~{ns.end} · {lim_note}")
+    print(f"거래 {len(res.trades)} · 최종 {eq[-1][1]:,.2f} USDT ({eq[-1][1] / D(ns.cash) - 1:+.1%}) · 지표 {dict((k, res.metrics[k]) for k in ('max_drawdown', 'win_rate', 'total_return') if k in res.metrics)}")
+    print(f"게이트 거부 {dict(res.rejects)} · K2 {res.k2_resumes} · 결과 {out}")
+    return 0
+
+
+def run_engine(ns: argparse.Namespace, out: Path):  # type: ignore[no-untyped-def]
+    """운영 M2 엔진 1회 실행. ns = main()의 인자(다른 스크립트는 parse_args로 만들어 넘김). 반환 (결과, 설정, 한도 설명, 전략)."""
+    if date.fromisoformat(ns.end) >= date(2026, 1, 1):
+        raise ValueError("2026 이후는 최종 확인 구간")
     sys.path.insert(0, str(OPS / "src"))
     sys.path.insert(0, str(LAB))
     from trading_system.app.backtest_m2 import SpotBacktestConfig, render_report_m2, run_backtest_m2
@@ -67,17 +91,13 @@ def main(argv: list[str]) -> int:
         limits = load_limits_file(OPS / "config" / "m2" / "limits.paper.toml", market="M2").limits
         lim_note = "운영 M2 PAPER 한도(A-064)"
     else:
-        limits = AccountLimits(l1_max_loss_ratio=D("0.06"), l2_max_symbol_ratio=D("1.0"), l3_max_total_ratio=D("1.0"),
+        limits = AccountLimits(l1_max_loss_ratio=D(ns.l1), l2_max_symbol_ratio=D(ns.l2), l3_max_total_ratio=D(ns.l3),
                                l4_daily_loss_ratio=D(ns.l4), l5_daily_new_orders=5, l6_max_positions=1,
-                               l7_max_order_amount=D("1000000000"), l10_leverage_total_ratio=None, warn_usage_ratio=D("0.80"),
+                               l7_max_order_amount=D(ns.l7), l10_leverage_total_ratio=None, warn_usage_ratio=D("0.80"),
                                order_window_start=time(0, 10), order_window_end=time(23, 50), daily_reference_time=time(0, 0),
                                report_time=time(0, 10))
-        lim_note = f"전략실 가정 한도(미결정): L1 6%·L2 100%·L3 100%·L4 {ns.l4}·L7 무제한"
-    out = LAB / "results" / "m2" / f"{date.today():%Y%m%d}-{ns.candidate}-{ns.label}"
-    if out.exists():
-        print(f"이미 있음(라벨 변경): {out}")
-        return 2
-    out.mkdir(parents=True)
+        lim_note = f"전략실 가정 한도(미결정): L1 {ns.l1}·L2 {ns.l2}·L3 {ns.l3}·L4 {ns.l4}·L7 {ns.l7}"
+    out.mkdir(parents=True, exist_ok=True)
     cfg = SpotBacktestConfig(
         run_id=f"{ns.candidate}-{ns.label}", strategy=strat, params=params, account_limits=limits, rules={ns.symbol: rules},
         pairs={ns.symbol: (ns.symbol[:-4], ns.symbol[-4:])},
@@ -86,12 +106,7 @@ def main(argv: list[str]) -> int:
         initial_cash=D(ns.cash), out_dir=out, slippage=D(ns.slip), data_version=f"csv:{ns.symbol}-1d")
     res = run_backtest_m2(cfg)
     (out / "report.md").write_text(render_report_m2(cfg, res, reproducible=None, lookahead_bad=None), encoding="utf-8")
-    eq = res.equity
-    print(f"== M2 엔진: {strat.spec.strategy_id} v{ns.version} [{ns.label}] {ns.start}~{ns.end} · {lim_note}")
-    print(f"거래 {len(res.trades)} · 최종 {eq[-1][1]:,.2f} USDT ({eq[-1][1] / D(ns.cash) - 1:+.1%}) · 지표 {dict((k, res.metrics[k]) for k in ('max_drawdown', 'win_rate', 'total_return') if k in res.metrics)}")
-    print(f"게이트 거부 {dict(res.rejects)} · 결과 {out}")
-    return 0
-
+    return res, cfg, lim_note, strat
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

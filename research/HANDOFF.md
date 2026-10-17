@@ -1,4 +1,4 @@
-# 전략실 세션 인계 (HANDOFF) — 2026-10-18 00:1x 기준 (date 확인)
+# 전략실 세션 인계 (HANDOFF) — 2026-10-18 00:3x 기준 (date 확인)
 
 **새 세션은 이 파일 하나만 먼저 읽는다.** 세부는 §8 파일 지도에서 필요한 것만 연다. 시각은 항상 `date`로 확인해 적는다(추정 금지). 실행 중인 작업: **없음**(2026-10-18 00:14 stage10 9/9 완료 확인).
 
@@ -9,6 +9,7 @@
 - 데이터: 운영 `var\backtest\data\binance-public-20261017`(실서버 공개 시세, 1d·1m) → 전략실 `data/crypto/BTCUSDT-1d.csv`·`BTCUSDT-1h.csv`(2025-12-31까지).
 - 탐색(`tools/cryptosim.py`, 판정 아님, 사전 등록 `research/2026-10-17-crypto-design.md`): 청산 50일선·돌파 15~40일이 평탄한 고원. 일봉 경계 24가지 모두 그냥 보유보다 수익·MDD 우위, 2017~2021로 고르고 2022~2025 확인 36개 중 35개 우위, 독립 계산 일치. 손절 방식·시점·국면 필터 영향 작음/악화. 피라미딩 효과 불분명 → 없음. 국면 비중(200일선 위면 98%)은 미미한 개선(변형 후보). 1시간 감시 근사도 비슷 → 하루 1회(UTC 00:15) 판정으로 충분(운영은 정해진 시각 판정만 지원).
 - 다른 계열 비교(2026-10-17 23:2x, `research/btc_alt_study.py`): 단순 장기선 보유·시계열 모멘텀·RSI(2) 역추세·50:50 묶기 모두 사전 기준상 v1보다 못함(역추세는 우위 없음 → 폐기). 2022~2025만 보면 SMA200 보유·365일 모멘텀이 v1과 비슷 — 감시 항목. 다음 후보 계열: 변동성 돌파(1시간 봉, 운영 주기 판정 필요 — 우선순위 낮음).
+- 사전 판정표·다른 자산·한도(2026-10-18, `research/2026-10-18-btc-preverdict-design.md`): 운영 M2 엔진 7창 C-2 34건 판단 불가·C-3·C-4 충족·손실 창 2/7 → v1 유지. 코스피 지수 우위·코스닥 열위 → 불분명(낙폭 축소만 공통). 위험 5%는 L1 ≥ 5.5%·L2/L3 ≥ 99%면 거부 0, L4는 백테스트로 시험 불가(장중 근사 1%면 보유일 59%) → 운영 질의.
 - 후보 v1(`candidates/btc_trend/`): 운영 M2 엔진(`tools/m2_quick.py`) 2017-09~2025 — 가정 한도에서 40건·+6,499%·MDD 43.4%(그냥 보유 +1,766%·83%). 운영 M2 PAPER 한도(A-064: L1 0.5%·L2 10%·L4 1%·L7 100 USDT)에서 위험 5%는 전부 거부 → PAPER는 축소판 `params-v1-paper.toml`(같은 40건·거부 0).
 - 거래 구조: 승률 39%, 평균 이익 +63% vs 평균 손실 −5.7%.
 - 한계: BTC 1종목·약 8년·사후 선택(과대 가능), 꾸준한 상승장에서는 보유보다 덜 범, 테스트넷 ≠ 실서버, 수수료 요율·세금 미확인, C-2(거래 100건) 미달 예상.
@@ -31,8 +32,8 @@
 | ④ | 한국 주식 방향 결정(§3) | 사용자 |
 | ⑤ | (선택) BTC 변형 후보: 국면 비중 A, 1시간 감시, 변동성 돌파(1시간 봉) — 운영 주기 판정 생기면 | 우선순위 낮음 |
 | ⑥ | BTC 감시 항목: 2022~2025만 보면 SMA200 보유·365일 모멘텀이 v1과 비슷(비율 0.95·1.07 vs 0.87) — 운영 PAPER·최종 확인 때 함께 볼 것 | 정보 |
-| ⑦ | (제안, 사용자 답 대기) 운영 대기 중 할 일: ① BTC 사전 판정표(C-1~C-8 방식 — 연도별 창·슬리피지 2배·±20%) ② 같은 규칙을 다른 자산에(지금은 코스피 지수, 다른 코인은 운영 데이터 필요) ③ 위험 5%용 M2 한도 제안 초안 | 사전 등록 → 별도 실행 |
-| ⑧ | 커밋: 2026-10-17 23:2x 이후 변경(cryptosim 확장·btc_alt_study·기록) 미커밋 — 사용자 지시 시 | 사용자 |
+| ⑦ | 볼륨 프로파일 카드 `ideas/2026-10-18-volume-profile-acceptance.md`(R0): BTC 1분봉으로 가치 구간 사건 연구(기준선 병기) → 차이 있으면 v1+수용 필터 1개 대조. 사용자 지시 시 사전 등록부터 | 대기 |
+| ⑧ | 운영 질의 후보(사용자가 운영에 보낼 때): M2 L4·K2가 보유 중 장중 감시로 재는지·재개 방식, 위험 5%용 L1 5.5%·L2/L3 99% 가능 여부 | 사용자 |
 
 ## 5. 반드시 지킬 규칙
 - 사전 등록 **저장 → 별도 호출로 실행**(2026-10-17 피라미딩 등록에서 한 번 어김 — 기록됨). 시각은 `date`로. 결과를 보고 기준·파라미터를 바꾸지 않는다. 이전 버전 코드는 `strategy-v<n>.py`로 보존. **실행 중인 후보의 strategy.py를 덮어쓰지 않는다**(2026-10-14 사고) — 실행 시작 확인 뒤에만.
@@ -55,8 +56,8 @@
 | 목적 | 경로 |
 |---|---|
 | 비트코인 후보·인계 | `candidates/btc_trend/{strategy.py,strategy.md,params-v1.toml,params-v1-paper.toml,notes.md,handoff.md}` |
-| 비트코인 탐색 설계·결과 | `research/2026-10-17-crypto-design.md`(사전 등록·결과 표 전부), `research/btc_monitor_study.py`(일봉 경계·1시간 감시), `research/btc_alt_study.py`(다른 계열 비교), 결과 `results/cryptosim/` |
-| 코인 도구 | `tools/cryptosim.py`(+`test_cryptosim.py` 8개 — entry_rule breakout/above_sma/tsmom/rsi2, exit sma/low/trail/tsmom/mr, hold_max, stop none), `tools/m2_quick.py`(운영 M2 엔진 실행) |
+| 비트코인 탐색 설계·결과 | `research/2026-10-17-crypto-design.md`(사전 등록·결과 표 전부), `research/2026-10-18-btc-preverdict-design.md`(사전 판정표·다른 자산·한도, 스크립트 btc_preverdict·btc_cross_asset·btc_l4_frequency), `research/btc_monitor_study.py`(일봉 경계·1시간 감시), `research/btc_alt_study.py`(다른 계열 비교), 결과 `results/cryptosim/` |
+| 코인 도구 | `tools/cryptosim.py`(+`test_cryptosim.py` 8개 — entry_rule breakout/above_sma/tsmom/rsi2, exit sma/low/trail/tsmom/mr, hold_max, stop none), `tools/m2_quick.py`(운영 M2 엔진 실행, --l1·--l2·--l3·--l4·--l7 가정 한도, 다른 스크립트용 parser()·run_engine() — 같은 출력 폴더 재실행은 엔진이 거부) |
 | 한국 빠른 시뮬레이터·요약 | `tools/fastsim.py`, `research/fastsim_grid_report.py`, 결과 `results/fastsim/` |
 | 한국 탐색 사전 등록(stage1~10·grid1) | `research/2026-10-14-r3v7-explore-design.md` |
 | 사용자 매매 분석 | `research/2026-10-16-user-trades-analysis.md`, `research/user_trades_analysis.py`·`user_trades_rules.py`, 원본 `data/user-trades/`(git 제외) |
