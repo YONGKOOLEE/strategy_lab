@@ -42,8 +42,8 @@ def rules(sym: str) -> SymbolRules:
 def run_crypto_trend(paper: bool) -> None:
     """crypto-trend strategy.py를 운영 엔진(하루 1회 00:15 판정)에서 적재·실행 — 호환성 확인용(60분 판정 결과 아님)."""
     from trading_system.config.limits_file import load_limits_file
-    pfile = LAB / "candidates" / "crypto_trend" / ("params-v1-paper.toml" if paper else "params-v1.toml")
-    strat, params = load_strategy(StrategyDeploy("candidates.crypto_trend.strategy:CryptoTrendV1", pfile.resolve(), ()))
+    pfile = LAB / "candidates" / "crypto_trend" / ("params-v2-paper.toml" if paper else "params-v2.toml")
+    strat, params = load_strategy(StrategyDeploy("candidates.crypto_trend.strategy:CryptoTrendV2", pfile.resolve(), ()))
     if paper:
         lim = load_limits_file(OPS / "config" / "m2" / "limits.paper.toml", market="M2").limits
     else:
@@ -51,8 +51,8 @@ def run_crypto_trend(paper: bool) -> None:
                             l5_daily_new_orders=5, l6_max_positions=2, l7_max_order_amount=D("1000000000"), l10_leverage_total_ratio=None,
                             warn_usage_ratio=D("0.80"), order_window_start=time(0, 10), order_window_end=time(23, 50),
                             daily_reference_time=time(0, 0), report_time=time(0, 10))
-    out = LAB / "results" / "m2" / f"{date.today():%Y%m%d}-crypto-trend-daily-{'paper' if paper else 'v1'}"
-    cfg = SpotBacktestConfig(run_id=f"crypto-trend-{'paper' if paper else 'v1'}", strategy=strat, params=params, account_limits=lim,
+    out = LAB / "results" / "m2" / f"{date.today():%Y%m%d}-crypto-trend-daily-{'v2-paper' if paper else 'v2'}"
+    cfg = SpotBacktestConfig(run_id=f"crypto-trend-{'v2-paper' if paper else 'v2'}", strategy=strat, params=params, account_limits=lim,
                              rules={s: rules(s) for s in STEPS}, pairs={s: (s[:-4], s[-4:]) for s in STEPS},
                              cost_rates=CostRates(commission_rate=D("0.001"), sell_tax_rate=D("0"), cost_quantum=D("0.00000001")),
                              data={s: bars(s) for s in STEPS}, start=date(2017, 9, 1), end=date(2025, 12, 31), initial_cash=D("10000"), out_dir=out,
@@ -60,7 +60,7 @@ def run_crypto_trend(paper: bool) -> None:
     res = run_backtest_m2(cfg)
     eq = res.equity
     by = {s: sum(1 for t in res.trades if t.instrument == s) for s in STEPS}
-    print(f"  crypto-trend {'PAPER 축소판·A-064 한도' if paper else 'v1·가정 한도'} (엔진 하루 1회 판정 — 호환성 확인): 거래 {len(res.trades)} {by} · "
+    print(f"  crypto-trend {'v2 PAPER 축소판·A-064 한도' if paper else 'v2·가정 한도'} (엔진 하루 1회 판정 — 호환성 확인): 거래 {len(res.trades)} {by} · "
           f"{eq[-1][1] / D(10000) - 1:+.1%} · MDD {res.metrics.get('max_drawdown')} · 거부 {dict(res.rejects)}")
 
 

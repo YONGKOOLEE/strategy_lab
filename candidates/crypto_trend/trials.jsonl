@@ -9,3 +9,4 @@
 {"time": "2026-10-18 01:3x", "label": "W", "settings": "격자 3×3 × 2종목 × 2 + 수수료 0.2%", "result": "A-h 우위 14/18·16/18"}
 {"time": "2026-10-18 01:4x", "label": "P", "settings": "strategy.py 재생 7창 + 10변형 + 슬리피지", "result": "C-3·C-4 충족, 90건"}
 {"time": "2026-10-18 01:4x", "label": "Q", "settings": "23회 vs 24회 × 3", "result": "비슷(23회 2종목 3.28/1.33)"}
+{"time": "2026-10-18 03:04", "label": "v2-deploy-fix", "settings": "period_minutes 60 + validate_deploy D-219 (규칙 무변경)", "result": "재생 105건 +6,964% 동일, 구조 검사 통과"}

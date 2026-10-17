@@ -4,7 +4,7 @@
 재생 규칙: 매 1시간 봉 종가에 판정(last_price = 그 봉 종가, daily_bars = 그날 전까지 확정 UTC 일봉 최근 60개, base_amount = 현금 + 보유 × 종가),
 신호는 다음 봉 시가 × (1 ± 슬리피지 0.05%) 체결, 수수료 0.1%, 한 계좌 공유 현금(매수가 현금을 넘으면 현금 한도로 줄임).
   python research/crypto_trend_replay.py BTCUSDT            → 1종목·params(위험 5%·상한 98%) — 시뮬레이터 A-h와 대조
-  python research/crypto_trend_replay.py BTCUSDT ETHUSDT    → 2종목·params-v1(위험 2.5%·상한 49%)
+  python research/crypto_trend_replay.py BTCUSDT ETHUSDT    → 2종목·params-v2(위험 2.5%·상한 49%, period_minutes는 evaluate에 영향 없음)
 """
 
 from __future__ import annotations
@@ -23,14 +23,14 @@ from trading_system.domain.enums import RequestType  # noqa: E402
 from trading_system.domain.strategy import Bar, EvaluationSnapshot, InstrumentView, PositionView  # noqa: E402
 
 from btc_monitor_study import load_hours  # noqa: E402
-from candidates.crypto_trend.strategy import CryptoTrendV1  # noqa: E402
+from candidates.crypto_trend.strategy import CryptoTrendV2  # noqa: E402
 
 FEE, SLIP = Decimal("0.001"), Decimal("0.0005")
 D = Decimal
 
 
 def base_params(n_syms: int) -> dict:
-    params = tomllib.loads((LAB / "candidates" / "crypto_trend" / "params-v1.toml").read_text(encoding="utf-8"))["params"]
+    params = tomllib.loads((LAB / "candidates" / "crypto_trend" / "params-v2.toml").read_text(encoding="utf-8"))["params"]
     return dict(params, risk_ratio="0.05", max_weight="0.98") if n_syms == 1 else params
 
 
@@ -40,7 +40,7 @@ _HOURS: dict = {}
 def replay(syms: list[str], params: dict, start: date = date(2017, 9, 1), end: date = date(2025, 12, 31), slip: Decimal = Decimal("0.0005"),
            skip_hours: frozenset = frozenset()) -> dict:
     """재생 1회. 반환: 청산 거래 손익 목록(USDT, 비용 반영)·최종 자산·MDD."""
-    strat = CryptoTrendV1()
+    strat = CryptoTrendV2()
     for s in syms:
         if s not in _HOURS:
             _HOURS[s] = {h[0]: h for h in load_hours(LAB / "data" / "crypto" / f"{s}-1h.csv")}
