@@ -124,23 +124,23 @@ def buy_hold(D: Data, start: date, end: date) -> dict:
 
 
 # ---- (a) v1: 일봉(23시 봉 종가) / 1시간 판정판 ----
-def v1(hourly: bool):  # type: ignore[no-untyped-def]
+def v1(hourly: bool, entry_n: int = 25, exit_n: int = 50, stop_atr: float = 2.0, risk: float = 0.05, maxw: float = 0.98):  # type: ignore[no-untyped-def]
     def f(D: Data, i: int, t: datetime, c: float, holding: bool, s: dict, entry: float):  # type: ignore[no-untyped-def]
         k = D.di[t.date()]
         if not hourly and t.hour != 23:
             return None
         if hourly:                                  # 완료된 일봉만(오늘 제외)
             kk = k - 1
-            if kk < 50:
+            if kk < max(entry_n, exit_n, 15):
                 return None
-            hi25 = max(D.cl[kk - 24:kk + 1])
-            sma = D.sma(kk, 50)
+            hi25 = max(D.cl[kk - entry_n + 1:kk + 1])
+            sma = D.sma(kk, exit_n)
             atr = D.atr[kk]
         else:                                       # 23시 종가 = 오늘 일봉 종가(v1과 같음)
-            if k < 50:
+            if k < max(entry_n, exit_n, 15):
                 return None
-            hi25 = max(D.cl[k - 25:k])
-            sma = D.sma(k, 50)
+            hi25 = max(D.cl[k - entry_n:k])
+            sma = D.sma(k, exit_n)
             atr = D.atr[k]
         if atr is None:
             return None
@@ -153,9 +153,9 @@ def v1(hourly: bool):  # type: ignore[no-untyped-def]
         if c > hi25:
             s["atr0"] = atr
             def stopset(px: float, a: float = atr) -> float:
-                s["stop"] = px - 2 * a
+                s["stop"] = px - stop_atr * a
                 return None  # type: ignore[return-value]
-            return ("buy", {"w": lambda px, a=atr: min(0.98, 0.05 / (2 * a / px)), "stop": stopset})
+            return ("buy", {"w": lambda px, a=atr: min(maxw, risk / (stop_atr * a / px)), "stop": stopset})
         return None
     return f
 
