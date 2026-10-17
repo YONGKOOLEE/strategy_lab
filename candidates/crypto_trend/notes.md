@@ -47,3 +47,6 @@
 - F-1(period_minutes 없음)·F-2(validate_deploy 23개 요구 vs D-219 빈 목록) → **전략실 v2로 수정**: ParamSpec period_minutes(15~60, 값 60), validate_deploy = eval_times 빈 목록 + period_minutes 60 + M2. 구조 검사 통과(CryptoTrendV2), validate_deploy 시험(빈 목록·60 통과 / 23개·15분·M1 거부), 재생 105건·+6,963.7%·MDD 33.5%(v1과 같음).
 - F-3(validate_rules 서명에 종목 없음 → BTCUSDT에 ETH 단위 0.0001이 와도 통과, ETH 0.0001도 가정): 전략 안에서는 고칠 수 없음 — **운영 공통 CP(서명에 종목 추가) 권장**, 전략 파라미터로 단위를 받는 방식은 오설정 위험이 같아 비권장.
 - 사전 등록 폐기 기준(맨 위)은 v2에 그대로 적용(규칙·수치 무변경이라 v1 근거 수치 그대로 비교).
+
+## 재검토 (2026-10-18 08:1x) — review-2026-10-18.md
+- BB L4 1% 공존(K2 연 약 100일), CC·DD 연간 상위 5 다종목 일봉 = v3 후보(7창 194건 C-2 충족·C-3·C-4 충족). 권장: v3를 1순위로, v2는 T-068 뒤.

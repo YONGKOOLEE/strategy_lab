@@ -38,8 +38,9 @@ _HOURS: dict = {}
 
 
 def replay(syms: list[str], params: dict, start: date = date(2017, 9, 1), end: date = date(2025, 12, 31), slip: Decimal = Decimal("0.0005"),
-           skip_hours: frozenset = frozenset()) -> dict:
-    """재생 1회. 반환: 청산 거래 손익 목록(USDT, 비용 반영)·최종 자산·MDD."""
+           skip_hours: frozenset = frozenset(), l4: float | None = None) -> dict:
+    """재생 1회. 반환: 청산 거래 손익 목록(USDT, 비용 반영)·최종 자산·MDD.
+    l4(BB, 2026-10-18): K2 근사 — UTC 날마다 기준 = 첫 봉 시가 평가 자산, 1시간 저가 평가 자산이 기준 대비 −l4 이하면 그날 신규 매수 금지(청산 허용)."""
     strat = CryptoTrendV2()
     for s in syms:
         if s not in _HOURS:
@@ -57,9 +58,11 @@ def replay(syms: list[str], params: dict, start: date = date(2017, 9, 1), end: d
     rel: list[float] = []                            # 거래 손익 ÷ 진입 직전 자산(재표본용)
     eq = cash
     last_day = None
+    ref_eq, halted, k2_days, blocked, new_day = cash, False, 0, 0, False
     for t in times:
         d = t.date()
         if d != last_day:                              # 날이 바뀌면 전날 일봉 확정
+            new_day = True
             for s in syms:
                 if cur[s]:
                     o, hi, lo, c = cur[s][0][1], max(x[2] for x in cur[s]), min(x[3] for x in cur[s]), cur[s][-1][4]
@@ -70,6 +73,9 @@ def replay(syms: list[str], params: dict, start: date = date(2017, 9, 1), end: d
             cur[s].append(hours[s][t])
         if d < start or d > end:
             continue
+        if new_day:                                    # K2 근사: 그날 기준 자산(첫 봉 시가 평가), 정지 해제(다음 날 재개)
+            ref_eq = cash + sum(pos[s][0] * D(str(hours[s][t][1])) for s in syms)
+            halted, new_day = False, False
         for s, (kind, q) in list(pend.items()):        # 시가 체결 — 매도 먼저
             if kind == "sell" and pos[s][0] > 0:
                 px = D(str(hours[s][t][1])) * (1 - slip)
@@ -81,6 +87,9 @@ def replay(syms: list[str], params: dict, start: date = date(2017, 9, 1), end: d
                 pos[s] = [D(0), D(0)]
         for s, (kind, q) in list(pend.items()):
             if kind == "buy" and pos[s][0] == 0:
+                if halted:                             # K2 중 신규 매수 금지
+                    blocked += 1
+                    continue
                 px = D(str(hours[s][t][1])) * (1 + slip)
                 q = min(q, cash / (px * (1 + FEE)))
                 q = (q / D("0.00001")).to_integral_value(rounding="ROUND_FLOOR") * D("0.00001")
@@ -90,6 +99,10 @@ def replay(syms: list[str], params: dict, start: date = date(2017, 9, 1), end: d
                     pos[s] = [q, px]
                     trades.append((s, "buy", t))
         pend = {}
+        if l4 is not None and not halted:              # 1시간 저가로 평가한 자산이 기준 대비 −l4 이하 → K2
+            eq_low = cash + sum(pos[s][0] * D(str(hours[s][t][3])) for s in syms)
+            if ref_eq > 0 and (eq_low - ref_eq) / ref_eq <= -D(str(l4)):
+                halted, k2_days = True, k2_days + 1
         closes = {s: D(str(hours[s][t][4])) for s in syms}
         eq = cash + sum(pos[s][0] * closes[s] for s in syms)
         peak = max(peak, eq)
@@ -101,8 +114,11 @@ def replay(syms: list[str], params: dict, start: date = date(2017, 9, 1), end: d
         if asof.hour in skip_hours:                  # Q: 운영 60분 일정은 01:00~23:00(00:00 판정 없음)
             continue
         for sig in strat.evaluate(snap, params):
+            if sig.kind != RequestType.EXIT and halted:  # K2 중 매수 신호는 게이트에서 거부
+                blocked += 1
+                continue
             pend[sig.instrument] = ("sell", None) if sig.kind == RequestType.EXIT else ("buy", sig.quantity)
-    return {"pnls": pnls, "rel": rel, "final": eq, "mdd": mdd, "trades": trades}
+    return {"pnls": pnls, "rel": rel, "final": eq, "mdd": mdd, "trades": trades, "k2_days": k2_days, "blocked": blocked}
 
 
 def main(syms: list[str]) -> int:
