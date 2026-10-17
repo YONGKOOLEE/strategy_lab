@@ -16,7 +16,7 @@
   최대 pyr_max단위, 총 비중 ≤ max_weight. pyr_stop last = 손절선을 마지막 단위 기준으로 올림 / first = 첫 손절선 유지. 청산은 전량.
 - 다른 계열(2026-10-17 추가, 기본값은 기존과 같음): entry_rule breakout(기본) / above_sma(종가 > SMA(entry_n)) / tsmom(종가 > entry_n일 전 종가) /
   rsi2(RSI(2, Wilder) < rsi_th). exit_mode tsmom(종가 ≤ exit_n일 전 종가) / mr(종가 > SMA(exit_n) — 역추세 이익 실현).
-  hold_max > 0이면 보유 hold_max번째 종가에서 청산(체결일 종가 = 1번째). stop_mode none = 손절 없음·비중 max_weight.
+  entry_allow(집합)가 있으면 그 날짜에만 진입(외부 필터, 기본 None). hold_max > 0이면 보유 hold_max번째 종가에서 청산(체결일 종가 = 1번째). stop_mode none = 손절 없음·비중 max_weight.
 - 비용: 수수료 fee(양방향), 슬리피지 slip. 세금 없음(적용 판단은 사용자 몫 — U-17).
 비교 기준선: 같은 구간 그냥 보유(첫날 시가 매수 → 마지막 날 종가 평가, 수수료 1회).
 실행: python tools/cryptosim.py --csv data/crypto/BTCUSDT-1d.csv [--start ...] [--end ...] [--set "키=값"] [--grid "키=값,값;..."]
@@ -192,6 +192,8 @@ def simulate(rows: list, P: dict, start: date, end: date) -> dict:
                 ok = rsi[k] is not None and rsi[k] < P["rsi_th"]
             else:
                 raise ValueError(f"entry_rule 모름: {rule}")
+            if ok and P["entry_allow"] is not None:
+                ok = str(d) in P["entry_allow"]          # 외부에서 계산한 진입 허용 날짜(예: 볼륨 프로파일 수용) — 판정일 기준
             if ok and P["regime_n"] > 0:
                 s = sma(k, P["regime_n"])
                 ok = s is not None and cl > s
@@ -232,7 +234,7 @@ DEFAULTS = {"cash": 10000.0, "entry_n": 20, "regime_n": 0, "stop_mode": "pct", "
             "stop_when": "intraday", "exit_mode": "sma", "exit_n": 20, "trail_atr": 3.0, "risk_ratio": 0.02,
             "max_weight": 1.0, "fee": 0.001, "slip": 0.0005,
             "pyr_max": 1, "pyr_step": 1.0, "pyr_stop": "last", "bull_mode": "off", "bull_weight": 0.98,
-            "entry_rule": "breakout", "rsi_th": 10.0, "hold_max": 0}
+            "entry_rule": "breakout", "rsi_th": 10.0, "hold_max": 0, "entry_allow": None}
 NUM = {"cash", "stop_pct", "stop_atr", "trail_atr", "risk_ratio", "max_weight", "fee", "slip", "pyr_step", "bull_weight", "rsi_th"}
 INT = {"entry_n", "regime_n", "exit_n", "pyr_max", "hold_max"}
 
