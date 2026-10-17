@@ -14,6 +14,9 @@
 - 국면 비중(bull_mode A: 종가 > SMA200 / B: + SMA200 상승(20일 전 대비)): 진입 판정일에 상승 국면이면 비중 = bull_weight, 아니면 위험 크기.
 - 피라미딩(pyr_max > 1): 보유 중 종가 ≥ 마지막 매수가 + pyr_step × ATR(첫 판정일)이면 다음 봉 시가에 1단위(같은 위험 규칙) 추가,
   최대 pyr_max단위, 총 비중 ≤ max_weight. pyr_stop last = 손절선을 마지막 단위 기준으로 올림 / first = 첫 손절선 유지. 청산은 전량.
+- 다른 계열(2026-10-17 추가, 기본값은 기존과 같음): entry_rule breakout(기본) / above_sma(종가 > SMA(entry_n)) / tsmom(종가 > entry_n일 전 종가) /
+  rsi2(RSI(2, Wilder) < rsi_th). exit_mode tsmom(종가 ≤ exit_n일 전 종가) / mr(종가 > SMA(exit_n) — 역추세 이익 실현).
+  hold_max > 0이면 보유 hold_max번째 종가에서 청산(체결일 종가 = 1번째). stop_mode none = 손절 없음·비중 max_weight.
 - 비용: 수수료 fee(양방향), 슬리피지 slip. 세금 없음(적용 판단은 사용자 몫 — U-17).
 비교 기준선: 같은 구간 그냥 보유(첫날 시가 매수 → 마지막 날 종가 평가, 수수료 1회).
 실행: python tools/cryptosim.py --csv data/crypto/BTCUSDT-1d.csv [--start ...] [--end ...] [--set "키=값"] [--grid "키=값,값;..."]
@@ -63,14 +66,31 @@ def atr_series(rows: list, n: int = 14) -> list[float | None]:
     return out
 
 
+def rsi_series(c: list[float], n: int = 2) -> list[float | None]:
+    """Wilder RSI. 첫 n개 변화의 평균으로 시작, 이후 (이전×(n−1) + 현재)/n."""
+    out: list[float | None] = [None] * len(c)
+    if len(c) <= n:
+        return out
+    ch = [c[k] - c[k - 1] for k in range(1, len(c))]
+    up = sum(max(x, 0.0) for x in ch[:n]) / n
+    dn = sum(max(-x, 0.0) for x in ch[:n]) / n
+    for k in range(n, len(c)):
+        if k > n:
+            x = ch[k - 1]
+            up, dn = (up * (n - 1) + max(x, 0.0)) / n, (dn * (n - 1) + max(-x, 0.0)) / n
+        out[k] = 100.0 if dn == 0 else 100.0 - 100.0 / (1 + up / dn)
+    return out
+
+
 def simulate(rows: list, P: dict, start: date, end: date) -> dict:
     c = [r[4] for r in rows]
     atr = atr_series(rows)
+    rsi = rsi_series(c, 2) if P.get("entry_rule") == "rsi2" else None
     idx = [k for k, r in enumerate(rows) if start <= r[0] <= end]
     if not idx:
         raise ValueError("구간에 데이터 없음")
     cash, qty, entry_px, stop, peak_c = float(P["cash"]), 0.0, 0.0, 0.0, 0.0
-    entry_day = None
+    entry_day, held = None, 0
     units, last_add, atr0 = 0, 0.0, None                # 피라미딩: 단위 수·마지막 매수가·첫 판정일 ATR
     pend = None                                      # ("buy", stop_line) / ("sell", reason)
     trades, eq_curve = [], []
@@ -87,16 +107,18 @@ def simulate(rows: list, P: dict, start: date, end: date) -> dict:
             if pend[0] == "buy" and qty == 0:
                 px = math.ceil(o * (1 + slip) / TICK) * TICK
                 eq = cash
-                sl = px * (1 - P["stop_pct"]) if P["stop_mode"] == "pct" else px - P["stop_atr"] * pend[1]   # 체결가 기준 손절선
+                sl = px * (1 - P["stop_pct"]) if P["stop_mode"] == "pct" else 0.0 if P["stop_mode"] == "none" else px - P["stop_atr"] * pend[1]   # 체결가 기준 손절선
                 dist = (px - sl) / px
                 w = min(P["max_weight"], P["risk_ratio"] / dist) if dist > 0 else 0.0
+                if P["stop_mode"] == "none":
+                    w, sl = P["max_weight"], 0.0
                 if len(pend) > 2 and pend[2]:
                     w = min(P["max_weight"], P["bull_weight"])     # 상승 국면이면 위험 크기 대신 bull_weight
                 q = math.floor(eq * w / (px * (1 + fee)) / STEP) * STEP
-                if q * px >= MIN_NOTIONAL and dist > 0 and sl > 0:
+                if q * px >= MIN_NOTIONAL and dist > 0 and (sl > 0 or P["stop_mode"] == "none"):
                     cash -= q * px * (1 + fee)
                     qty, entry_px, stop, peak_c = q, px, sl, px
-                    entry_day = d
+                    entry_day, held = d, 0
                     units, last_add, atr0 = 1, px, pend[1]
             elif pend[0] == "add" and qty > 0:
                 px = math.ceil(o * (1 + slip) / TICK) * TICK
@@ -130,6 +152,7 @@ def simulate(rows: list, P: dict, start: date, end: date) -> dict:
         # 3) 종가 판정
         if qty > 0:
             peak_c = max(peak_c, cl)
+            held += 1
             why = None
             if P["stop_when"] == "close" and cl < stop:
                 why = "stop_close"
@@ -143,12 +166,32 @@ def simulate(rows: list, P: dict, start: date, end: date) -> dict:
             elif P["exit_mode"] == "trail":
                 if atr[k] is not None and cl < peak_c - P["trail_atr"] * atr[k]:
                     why = "trail"
+            elif P["exit_mode"] == "tsmom":
+                if k >= P["exit_n"] and cl <= c[k - P["exit_n"]]:
+                    why = "tsmom"
+            elif P["exit_mode"] == "mr":
+                s = sma(k, P["exit_n"])
+                if s is not None and cl > s:
+                    why = "mr"
+            if not why and P["hold_max"] > 0 and held >= P["hold_max"]:
+                why = "hold_max"
             if why:
                 pend = ("sell", why)
             elif units < P["pyr_max"] and atr0 is not None and cl >= last_add + P["pyr_step"] * atr0:
                 pend = ("add", None)                     # 마지막 매수가 + pyr_step × ATR(첫 판정일) 이상 → 다음 봉 시가에 1단위 추가
         elif k >= P["entry_n"]:
-            ok = cl > max(c[k - P["entry_n"]:k])
+            rule = P["entry_rule"]
+            if rule == "breakout":
+                ok = cl > max(c[k - P["entry_n"]:k])
+            elif rule == "above_sma":
+                s = sma(k, P["entry_n"])
+                ok = s is not None and cl > s
+            elif rule == "tsmom":
+                ok = cl > c[k - P["entry_n"]]
+            elif rule == "rsi2":
+                ok = rsi[k] is not None and rsi[k] < P["rsi_th"]
+            else:
+                raise ValueError(f"entry_rule 모름: {rule}")
             if ok and P["regime_n"] > 0:
                 s = sma(k, P["regime_n"])
                 ok = s is not None and cl > s
@@ -182,15 +225,16 @@ def simulate(rows: list, P: dict, start: date, end: date) -> dict:
             "win_rate": sum(1 for r in rets if r > 0) / len(rets) if rets else 0.0,
             "avg_ret": sum(rets) / len(rets) if rets else 0.0, "year_ret": yr,
             "buy_hold_ret": bh / P["cash"] - 1, "buy_hold_mdd": bh_mdd,
-            "exposure": None, "trade_list": trades}
+            "exposure": None, "trade_list": trades, "eq_curve": eq_curve}
 
 
 DEFAULTS = {"cash": 10000.0, "entry_n": 20, "regime_n": 0, "stop_mode": "pct", "stop_pct": 0.08, "stop_atr": 3.0,
             "stop_when": "intraday", "exit_mode": "sma", "exit_n": 20, "trail_atr": 3.0, "risk_ratio": 0.02,
             "max_weight": 1.0, "fee": 0.001, "slip": 0.0005,
-            "pyr_max": 1, "pyr_step": 1.0, "pyr_stop": "last", "bull_mode": "off", "bull_weight": 0.98}
-NUM = {"cash", "stop_pct", "stop_atr", "trail_atr", "risk_ratio", "max_weight", "fee", "slip", "pyr_step", "bull_weight"}
-INT = {"entry_n", "regime_n", "exit_n", "pyr_max"}
+            "pyr_max": 1, "pyr_step": 1.0, "pyr_stop": "last", "bull_mode": "off", "bull_weight": 0.98,
+            "entry_rule": "breakout", "rsi_th": 10.0, "hold_max": 0}
+NUM = {"cash", "stop_pct", "stop_atr", "trail_atr", "risk_ratio", "max_weight", "fee", "slip", "pyr_step", "bull_weight", "rsi_th"}
+INT = {"entry_n", "regime_n", "exit_n", "pyr_max", "hold_max"}
 
 
 def main(argv: list[str]) -> int:
@@ -221,6 +265,7 @@ def main(argv: list[str]) -> int:
         P = dict(base, **cmb)
         r = simulate(rows, P, date.fromisoformat(ns.start), date.fromisoformat(ns.end))
         r["params"] = P
+        r.pop("eq_curve")
         if len(combos) > 1:
             r.pop("trade_list")
         out.append(r)

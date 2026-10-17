@@ -81,3 +81,22 @@ def test_pyramid_adds_units_and_raises_stop(tmp_path: Path) -> None:
     base = run(rows_p, pyr_max=1, **kw)
     pyr = run(rows_p, pyr_max=4, pyr_step=1.0, **kw)
     assert pyr["final"] > base["final"]                           # 상승장에서 단위가 늘어 더 큰 이익
+
+
+def test_rsi2_entry_and_mr_exit(tmp_path: Path) -> None:
+    # 상승 뒤 급락 1번(124→110, RSI(2) < 10) → 다음 시가(26번째) 매수 → 종가 112 > SMA(3) 105.7 → 다음 시가 매도
+    closes = [100 + k for k in range(25)] + [110, 100, 105, 112, 112]
+    r = run(write(tmp_path, closes), entry_rule="rsi2", rsi_th=10.0, exit_mode="mr", exit_n=3, stop_pct=0.5, stop_when="close")
+    t = r["trade_list"]
+    assert t and t[0][0] == str(D0 + timedelta(days=26)) and t[0][1] == str(D0 + timedelta(days=29)) and t[0][5] == "mr"
+
+
+def test_hold_max_and_stop_none(tmp_path: Path) -> None:
+    closes = [100] * 10 + [101 + k for k in range(20)]
+    r = run(write(tmp_path, closes), entry_rule="above_sma", entry_n=5, exit_mode="sma", exit_n=5,
+            stop_mode="none", max_weight=0.5, hold_max=3)
+    t = r["trade_list"]
+    assert t[0][5] == "hold_max"
+    held = (date.fromisoformat(t[0][1]) - date.fromisoformat(t[0][0])).days
+    assert held == 3                                   # 체결일 포함 3번째 종가에서 판정 → 다음 시가 매도
+    assert abs(t[0][4] * t[0][2] - 5000) < 200         # 비중 50%
