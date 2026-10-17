@@ -17,8 +17,8 @@ SRC = Path(r"C:\AI\trading_system\trading_system\var\backtest\data\binance-publi
 CUT = "2026-01-01"
 
 
-def daily(src: Path, sym: str) -> int:
-    out = LAB / "data" / "crypto" / f"{sym}-1d.csv"
+def daily(src: Path, sym: str, out_dir: Path | None = None) -> int:
+    out = (out_dir or LAB / "data" / "crypto") / f"{sym}-1d.csv"
     n = 0
     with (src / f"{sym}-1d.csv").open(encoding="utf-8") as f, out.open("w", newline="", encoding="utf-8") as g:
         w = csv.writer(g)
@@ -84,12 +84,21 @@ def minutes_bars(src: Path, sym: str, m: int) -> int:
 
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--symbol", required=True)
+    ap.add_argument("--symbol", default="", help="심볼 하나(--all이면 무시)")
+    ap.add_argument("--all", default="", help="폴더의 *-1d.csv 전부 → 이 하위 폴더(data/crypto/<값>)로 일봉만 사본(예: universe)")
     ap.add_argument("--src", default=str(SRC))
     ap.add_argument("--hourly", action="store_true")
     ap.add_argument("--minutes", type=int, default=0, help="m분 봉도 만듦(예: 15, 60 미만 약수)")
     ns = ap.parse_args(argv)
     src = Path(ns.src)
+    if ns.all:
+        out_dir = LAB / "data" / "crypto" / ns.all
+        out_dir.mkdir(parents=True, exist_ok=True)
+        files = sorted(src.glob("*-1d.csv"))
+        rows = sum(daily(src, f.name[:-7], out_dir) for f in files)
+        (out_dir / "SOURCE.txt").write_text(f"source={src} · cutoff={CUT} · 심볼 {len(files)} · 행 {rows} (tools/sync_crypto.py --all)\n", encoding="utf-8")
+        print(f"{len(files)}심볼 · {rows}행 → {out_dir}")
+        return 0
     nd = daily(src, ns.symbol)
     msg = f"{ns.symbol}: 일봉 {nd}"
     if ns.hourly:

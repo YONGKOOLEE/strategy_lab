@@ -17,6 +17,7 @@ from pathlib import Path
 LAB = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(LAB / "tools"))
 import cryptosim as cs  # noqa: E402
+cs.TICK = 1e-8   # 2026-10-18 첫 실행 뒤 수정: cryptosim 기본 호가 0.01 USDT가 저가 코인(TRX·VET 등)에서 체결가를 크게 왜곡 → 사실상 단위 없음(바이낸스 실제 단위는 심볼별, 미반영)
 
 V1 = dict(entry_rule="breakout", entry_n=25, exit_mode="sma", exit_n=50, stop_mode="atr", stop_atr=2.0, stop_when="close",
           risk_ratio=0.05, max_weight=0.98)
